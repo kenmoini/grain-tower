@@ -248,7 +248,6 @@
       ansible_user: ec2-user
       ansible_connection: ssh
       ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
-      #ansible_python_interpreter: "{{ ansible_playbook_python }}"
       ansible_python_interpreter: "/usr/libexec/platform-python"
       aws_guid_public_zone_name: "{{ aws_guid_public_zone_name }}"
 
