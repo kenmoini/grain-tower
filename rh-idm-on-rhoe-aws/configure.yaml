@@ -79,11 +79,53 @@
     state: enabled
     port: 8080/tcp
 
-- name: Install FreeIPA server packages
+- name: Install IDM server packages
   yum:
-    name: "{{ freeipa_server_pkgs }}"
+    name: "{{ idm_server_pkgs }}"
     state: present
   delay: 10
   register: result
   retries: 3
   until: result is succeeded
+
+- name: Echo the IDM server installer
+  debug:
+    msg: "{{ idm_server_install_base_command }} {{ idm_server_install_options | join(' ') }}"
+
+- name: Run the IDM server installer
+  args:
+    creates: /etc/ipa/default.conf
+  command: "{{ idm_server_install_base_command }} {{ idm_server_install_options | join(' ') }}"
+
+- name: Do initial kinit admin auth
+  shell: "echo '{{ idm_server_admin_password }}' | kinit admin"
+
+- name: Create workshopusers group
+  shell: "ipa group-add {{ idm_provision_users_group }}"
+  when: idm_provision_users
+
+- name: Create batch student users
+  shell: "echo '{{ idm_provision_users_password }}' | ipa user-add {{ idm_provision_users_prefix }}{{ item }}{{ idm_provision_users_suffix }} --first=Student --last=User{{ item }} --password --shell=/bin/bash"
+  with_sequence: start={{ idm_provision_users_start }} count={{ idm_provision_users_count }}
+  when: idm_provision_users
+
+- name: Set expiration out for a decade so users dont have to reset passwords
+  shell: "ipa user-mod {{ idm_provision_users_prefix }}{{ item }}{{ idm_provision_users_suffix }} --setattr krbPasswordExpiration=20360420162000Z"
+  with_sequence: start={{ idm_provision_users_start }} count={{ idm_provision_users_count }}
+  when: idm_provision_users
+
+- name: Add users to group
+  shell: "ipa group-add-member {{ idm_provision_users_group }} --users={{ idm_provision_users_prefix }}{{ item }}{{ idm_provision_users_suffix }}"
+  with_sequence: start={{ idm_provision_users_start }} count={{ idm_provision_users_count }}
+  when: idm_provision_users
+
+- name: Copy Binding User template file over
+  template:
+    src: templates/idm-binddn.update.j2
+    dest: /etc/ipa/idm-binddn.update
+  when: idm_provision_users
+
+- name: Create Binding user from template
+  shell: "ipa-ldap-updater /etc/ipa/idm-binddn.update"
+  when: idm_provision_users
+  notify: restart ipa services
