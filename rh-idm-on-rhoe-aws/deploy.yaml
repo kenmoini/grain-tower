@@ -246,6 +246,7 @@
       groups:
       - idm
       ansible_user: ec2-user
+      ansible_connection: ssh
       ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
       aws_guid_public_zone_name: "{{ aws_guid_public_zone_name }}"
 
