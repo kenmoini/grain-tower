@@ -1,0 +1,86 @@
+---
+- name: Destroy a Bastion Host on Red Hat Open Environments, AWS
+  hosts: localhost
+  gather_facts: false
+  vars:
+    r53_records: []
+
+  tasks:
+  
+  - name: Include shared vars
+    include_vars: vars.yaml
+
+  - name: Set preflight facts for current working directory
+    set_fact:
+      cwd: "{{ playbook_dir.split('/') }}"
+
+  - name: Set preflight facts for roles
+    set_fact:
+      nu_roles_path: "{{ cwd[:-1] | join('/') }}/roles"
+
+  - name: Scope RHOE AWS Environment
+    include_role:
+      name: "{{ nu_roles_path }}/scope-rhoe-aws"
+
+  - name: Query EC2 Instance for Bastion Host
+    community.aws.ec2_instance_info:
+      region: "{{ aws_region }}"
+      filters:
+        "tag:guid": "{{ rhoe_guid }}"
+        "tag:owner": "{{ rhoe_email_owner }}"
+        "tag:email": "{{ rhoe_email_owner }}"
+        "tag:Name": "{{ bastion_hostname }}"
+        "tag:base_domain": "{{ aws_guid_public_zone_name }}"
+        "tag:deployer": grain-tower
+        instance-state-name: ["running", "stopped"]
+    register: aws_ec2_instance
+
+  - name: Set fact for Route53 entries
+    when: aws_ec2_instance.instances|length > 0
+    set_fact:
+      r53_records:
+        - name: "{{ bastion_hostname }}.{{ aws_guid_public_zone_name }}"
+          type: A
+          ttl: 300
+          value: "{{ aws_ec2_instance.instances[0].public_ip_address }}"
+        - name: "*.{{ bastion_hostname }}.{{ aws_guid_public_zone_name }}"
+          type: A
+          ttl: 300
+          value: "{{ aws_ec2_instance.instances[0].public_ip_address }}"
+
+  #======================================================================== AWS INFRASTRUCTURE
+    
+  - name: Delete Route53 A Record Entries for Bastion Host
+    community.aws.route53:
+      state: absent
+      zone: "{{ aws_guid_public_zone_name }}"
+      record: "{{ record_item.name }}"
+      type: "{{ record_item.type }}"
+      ttl: "{{ record_item.ttl }}"
+      value: "{{ record_item.value }}"
+      overwrite: yes
+    loop: "{{ r53_records }}"
+    loop_control:
+      loop_var: record_item
+    when: (record_item.type == "A") and (aws_ec2_instance.instances|length > 0)
+
+  - name: Delete EC2 instance
+    when: aws_ec2_instance.instances|length > 0
+    amazon.aws.ec2:
+      region: "{{ aws_region }}"
+      state: absent
+      wait: yes
+      instance_ids: '{{ aws_ec2_instance.instances[0].instance_id }}'
+
+  - name: Delete Bastion Host Security Group
+    amazon.aws.ec2_group:
+      name: bastion-sg
+      state: absent
+      vpc_id: "{{ aws_vpc_id }}"
+      region: "{{ aws_region }}"
+
+  - name: Delete EC2 Key Pair
+    amazon.aws.ec2_key:
+      region: "{{ aws_region }}"
+      name: "{{ bastion_keypair_name }}"
+      state: absent

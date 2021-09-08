@@ -1,0 +1,21 @@
+---
+# Basic Needed vars
+
+aws_region: us-east-2
+bastion_hostname: bastion
+bastion_keypair_name: bastion_keypair
+bastion_ec2_instance_type: t3.small
+bastion_ec2_keypair: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC/UQ6SVJ0Jk/fDfLpecIIIfTe3+Ry+oaF8AFKAZwXJ8xMMmrPcPX1JTb4k/keVPT5liqYLb6pxO9yKUb1fLIKXQj+6OaDFaq7J8O3ad5AjpwMH97pynPtjUnltDIPbMTLOUHMZCrvF/PIn0iQ2lfl48lADD/S/tOPh34TI8fv+miuCO7Gdsk9DqT9SxIRG4oKj7ZKp/PKyWuPheRhJ0KiSeFIHR3dXSJnLiL+JkdBotB4IK78Pygwo6P6Wyl2P4gobkKhy/YuTiSImbaN0G8YMJrUu1EzYQ5QlmNqPKVuFH8te41vxmTX47N5h8vfO9c00YFC5H9mtsPMGXYRTiRkB
+
+base_pkgs:
+  - curl
+  - git
+  - policycoreutils-python-utils
+  - python3-policycoreutils
+  - openssh-server
+  - openssl
+  - tzdata
+  - nano
+  - wget
+  - firewalld
+  - python3-pip

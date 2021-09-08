@@ -1,0 +1,49 @@
+---
+- name: Wait for SSH to come up
+  wait_for_connection:
+    delay: 10
+    timeout: 360
+
+- name: Update system packages
+  yum:
+    name: "*"
+    state: latest
+    update_cache: yes
+  register: update_task_result
+
+- name: Install base packages
+  yum:
+    name: "{{ base_pkgs }}"
+    state: present
+  delay: 10
+  register: result
+  retries: 3
+  until: result is succeeded
+
+- name: Disable SELinux
+  selinux:
+    state: disabled
+
+- name: Start firewalld
+  service:
+    name: firewalld
+    state: started
+    enabled: true
+      
+- name: Reboot immediately if there were new packages installed
+  shell: "sleep 5 && reboot"
+  async: 1
+  poll: 0
+  when: update_task_result is changed
+
+- name: Wait for the reboot to complete if there were new packages installed
+  wait_for_connection:
+    connect_timeout: 20
+    sleep: 5
+    delay: 5
+    timeout: 300
+  when: update_task_result is changed
+  delay: 10
+  register: wait_result
+  retries: 3
+  until: wait_result is succeeded
