@@ -19,3 +19,8 @@ base_pkgs:
   - wget
   - firewalld
   - python3-pip
+
+oc_download_link: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
+openshift_install_download_link: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-install-linux.tar.gz
+
+disable_selinux: true

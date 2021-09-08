@@ -20,9 +20,43 @@
   retries: 3
   until: result is succeeded
 
+- name: Download oc & kubectl binaries
+  get_url:
+    url: "{{ oc_download_link }}"
+    dest: /opt/oc.tar.gz
+
+- name: Download openshift-install binary
+  get_url:
+    url: "{{ openshift_install_download_link }}"
+    dest: /opt/openshift-install.tar.gz
+
+- name: Extract binary packages
+  ansible.builtin.unarchive:
+    src: "/opt/{{ tar_item }}"
+    dest: /opt
+  loop:
+    - openshift-install.tar.gz
+    - oc.tar.gz
+  loop_control:
+    loop_var: tar_item
+
+- name: Move & Set executable bits for binaries
+  ansible.builtin.copy:
+    src: "/opt/{{ binary_item }}"
+    dest: "/usr/local/bin/{{ binary_item }}"
+    remote_src: yes
+    mode: '0755'
+  loop:
+    - openshift-install
+    - oc
+    - kubectl
+  loop_control:
+    loop_var: binary_item
+
 - name: Disable SELinux
   selinux:
     state: disabled
+  when: disable_selinux|bool
 
 - name: Start firewalld
   service:
