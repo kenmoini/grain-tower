@@ -1,0 +1,33 @@
+---
+
+- name: List all hosted zones
+  community.aws.route53_info:
+    query: hosted_zone
+  register: hosted_zones
+
+- name: Set internal GUID private zone
+  set_fact:
+    aws_guid_private_zone_id: "{{ r53_item.Id | replace('/hostedzone/', '') }}"
+    aws_guid_private_zone_name: "{{ r53_item.Name[:-1] }}"
+  loop: "{{ hosted_zones.HostedZones }}"
+  loop_control:
+    loop_var: r53_item
+  when: r53_item.Config.PrivateZone|bool and '.internal.' in r53_item.Name
+
+- name: Set external public zone
+  set_fact:
+    aws_public_zone_id: "{{ r53_item.Id | replace('/hostedzone/', '') }}"
+    aws_public_zone_name: "{{ r53_item.Name[:-1] }}"
+  loop: "{{ hosted_zones.HostedZones }}"
+  loop_control:
+    loop_var: r53_item
+  when: not r53_item.Config.PrivateZone|bool and ( 'opentlc.com' in r53_item.Name ) and ( (r53_item.Name.split('.')) | length == 4)
+
+- name: Set external GUID public zone
+  set_fact:
+    aws_guid_public_zone_id: "{{ r53_item.Id | replace('/hostedzone/', '') }}"
+    aws_guid_public_zone_name: "{{ r53_item.Name[:-1] }}"
+  loop: "{{ hosted_zones.HostedZones }}"
+  loop_control:
+    loop_var: r53_item
+  when: not r53_item.Config.PrivateZone|bool and ( 'opentlc.com' in r53_item.Name ) and ( (r53_item.Name.split('.')) | length == 5)

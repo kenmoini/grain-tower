@@ -1,0 +1,7 @@
+---
+# tasks file for scope-rhoe-aws
+- name: Set up Route53 Information
+  include_tasks: get_route53_info.yaml
+
+- name: Set up VPC Information
+  include_tasks: get_vpc_info.yaml

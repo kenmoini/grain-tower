@@ -1,0 +1,3 @@
+---
+# defaults file for scope-rhoe-aws
+aws_region: us-east-2
