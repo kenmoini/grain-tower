@@ -19,10 +19,10 @@ idm_provision_users_password: r3dh4t1!
 idm_server_admin_password: s3cur3P455W0rd
 idm_server_ds_password: s3cur3P455W0rd
 
-idm_server_domain: "{{ domain }}"
-idm_server_fqdn: "{{ idm_hostname }}.{{ domain }}"
+idm_server_domain: "{{ aws_guid_public_zone_name }}"
+idm_server_fqdn: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}"
 idm_server_ip: "{{ ansible_ssh_host }}"
-idm_server_realm: "{{ domain | upper }}"
+idm_server_realm: "{{ aws_guid_public_zone_name | upper }}"
 idm_server_manage_host: false
 idm_server_install_base_command: ipa-server-install --unattended
 idm_server_pkgs:
