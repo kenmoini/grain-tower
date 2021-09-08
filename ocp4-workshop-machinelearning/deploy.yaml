@@ -1,0 +1,70 @@
+---
+- name: Deploy the Machine Learning Workshop to a target cluster
+  hosts: localhost
+
+  tasks:
+
+  - name: Set preflight facts for current working directory
+    set_fact:
+      cwd: "{{ playbook_dir.split('/') }}"
+
+  - name: Set preflight facts for roles
+    set_fact:
+      nu_roles_path: "{{ cwd[:-1] | join('/') }}/roles"
+  
+  - name: Include shared vars
+    include_vars: vars.yaml
+
+  - name: Scope RHOE AWS Environment
+    include_role:
+      name: "{{ nu_roles_path }}/scope-rhoe-aws"
+
+  - name: Scope Bastion information
+    include_role:
+      name: "{{ nu_roles_path }}/find-bastion-rhoe-aws"
+
+  - name: Add Bastion host to inventory
+    add_host:
+      hostname: '{{ bastion_info.public_ip }}'
+      groups:
+      - bastion
+      ansible_user: ec2-user
+      ansible_connection: ssh
+      ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+      ansible_python_interpreter: "/usr/libexec/platform-python"
+      aws_guid_public_zone_name: "{{ aws_guid_public_zone_name }}"
+      rhoe_email_owner: "{{ rhoe_email_owner }}"
+
+- name: Connect to the Bastion and deploy the workshop
+  hosts: bastion
+
+  tasks:
+  
+  - name: Include shared vars
+    include_vars: vars.yaml
+  
+  - name: Check for an openshift cluster configuration
+    ansible.builtin.stat:
+      path: /opt/openshift-install/kubeconfig
+    register: kubeconfig_file
+
+  - name: No kubeconfig found!
+    fail:
+      msg: "No kubeconfig found at /opt/openshift-install/kubeconfig!"
+    when: not kubeconfig_file.exists
+
+  - name: Clone down the agnosticd deployer
+    ansible.builtin.git:
+      repo: "{{ agnosticd_repo }}"
+      dest: /opt/agnosticd
+      clone: yes
+      update: yes
+      single_branch: yes
+      version: "{{ agnosticd_branch }}"
+
+  - name: Run the ML workload deployer from agnosticd
+    block:
+    - name: Kick things off
+      include_tasks: /opt/agnosticd/roles/ocp4-workload-machinelearning/tasks/main.yml    
+    environment:
+      KUBECONFIG: "/opt/openshift-installs/kubeconfig"

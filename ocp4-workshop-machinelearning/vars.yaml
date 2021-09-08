@@ -1,0 +1,28 @@
+---
+silent: False
+become_override: False
+ACTION: create
+num_users: 3
+ocp_username: opentlc-mgr
+workshop_openshift_user_name: userXX
+workshop_openshift_user_password: r3dh4t1!
+workshop_openshift_admin_password: 'r3dh4t1!'
+repo_owner: kenmoini
+repo: machine-learning-workshop-labs
+deploy_demo: true
+
+demo_ml_project_namespace: demo-ml
+demo_ml_wait_for_service_build: false
+demo_ml_run_new_builds_if_already_built: false
+
+guides_url: "https://raw.githubusercontent.com/{{ repo_owner }}/machine-learning-workshop-guides/main"
+labs_url: "https://raw.githubusercontent.com/{{ repo_owner }}/machine-learning-workshop-labs/main"
+
+# Verified and needed vars
+aws_region: us-east-2
+
+agnosticd_branch: machinelearning
+agnosticd_url: "https://raw.githubusercontent.com/{{ repo_owner }}/agnosticd/{{ agnosticd_branch }}"
+agnosticd_repo: "https://github.com/{{ repo_owner }}/agnosticd.git"
+
+bastion_hostname: bastion
