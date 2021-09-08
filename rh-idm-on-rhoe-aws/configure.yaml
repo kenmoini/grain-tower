@@ -4,23 +4,32 @@
     delay: 10
     timeout: 360
 
-- name: Connect to new instance and set hostname
-  hostname:
-    name: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}"
-
-- name: Set /etc/hosts file
-  copy:
-    dest: "/etc/hosts"
-    content: |
-      127.0.0.1 localhost localdomain
-      {{ inventory_hostname }} {{ idm_hostname }}.{{ aws_guid_public_zone_name }} {{ aws_guid_public_zone_name }}
-
-- name: Update base packages
+- name: Update system packages
   yum:
     name: "*"
     state: latest
     update_cache: yes
   register: update_task_result
+
+- name: Install base packages
+  become: yes
+  yum:
+    disable_gpg_check: yes
+    state: present
+    name: ['nano', 'firewalld', 'python3-libselinux', '@idm:DL1']
+
+- name: Install IDM server packages
+  yum:
+    name: "{{ idm_server_pkgs }}"
+    state: present
+  delay: 10
+  register: result
+  retries: 3
+  until: result is succeeded
+
+- name: Disable SELinux
+  selinux:
+    state: disabled
       
 - name: Reboot immediately if there were new packages installed
   shell: "sleep 5 && reboot"
@@ -40,16 +49,19 @@
   retries: 3
   until: wait_result is succeeded
 
-- name: Connect to instance and install base packages
-  become: yes
-  yum:
-    disable_gpg_check: yes
-    state: present
-    name: ['nano', 'firewalld', 'python3-libselinux', '@idm:DL1']
+- name: Collect facts
+  ansible.builtin.setup:
 
-- name: Disable SELinux
-  selinux:
-    state: disabled
+- name: Connect to new instance and set hostname
+  hostname:
+    name: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}"
+
+- name: Set /etc/hosts file
+  copy:
+    dest: "/etc/hosts"
+    content: |
+      127.0.0.1 localhost localdomain
+      {{ hostvars[inventory_hostname].ansible_eth0.ipv4.address }} {{ idm_hostname }}.{{ aws_guid_public_zone_name }} {{ aws_guid_public_zone_name }}
 
 - name: Start firewalld
   service:
@@ -79,15 +91,6 @@
     state: enabled
     port: 8080/tcp
 
-- name: Install IDM server packages
-  yum:
-    name: "{{ idm_server_pkgs }}"
-    state: present
-  delay: 10
-  register: result
-  retries: 3
-  until: result is succeeded
-
 - name: Echo the IDM server installer
   debug:
     msg: "{{ idm_server_install_base_command }} {{ idm_server_install_options | join(' ') }}"
@@ -100,9 +103,12 @@
 - name: Do initial kinit admin auth
   shell: "echo '{{ idm_server_admin_password }}' | kinit admin"
 
-- name: Create workshopusers group
-  shell: "ipa group-add {{ idm_provision_users_group }}"
-  when: idm_provision_users
+- name: Create groups
+  shell: "ipa group-add {{ group_item }}"
+  when: idm_provision_groups
+  loop: "{{ idm_provision_groups_groups }}"
+  loop_control:
+    loop_var: group_item
 
 - name: Create batch student users
   shell: "echo '{{ idm_provision_users_password }}' | ipa user-add {{ idm_provision_users_prefix }}{{ item }}{{ idm_provision_users_suffix }} --first=Student --last=User{{ item }} --password --shell=/bin/bash"
@@ -128,4 +134,9 @@
 - name: Create Binding user from template
   shell: "ipa-ldap-updater /etc/ipa/idm-binddn.update"
   when: idm_provision_users
-  notify: restart ipa services
+
+- name: Restart ipa services
+  service:
+    enabled: yes
+    name: ipa
+    state: restarted

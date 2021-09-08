@@ -37,21 +37,22 @@
       rules:
         - proto: tcp
           ports:
-            - 443
-            - 80
-            - 8080
             - 22
             - 53
+            - 80
             - 88
-            - 464
             - 389
+            - 443
+            - 464
             - 636
+            - 8080
           cidr_ip: 0.0.0.0/0
         - proto: udp
           ports:
-            - 464
+            - 53
             - 88
             - 123
+            - 464
           cidr_ip: 0.0.0.0/8
       rules_egress:
         - proto: tcp
@@ -245,12 +246,13 @@
       groups:
       - idm
       ansible_user: ec2-user
-      ansible_host_key_checking: false
+      ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
       aws_guid_public_zone_name: "{{ aws_guid_public_zone_name }}"
 
 - name: Configure IDM Server
   hosts: idm
   become: yes
+  gather_facts: false
   tasks:
   
     - name: Include shared vars

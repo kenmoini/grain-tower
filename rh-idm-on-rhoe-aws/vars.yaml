@@ -5,15 +5,20 @@ aws_region: us-east-2
 idm_hostname: idm
 idm_keypair_name: idm_keypair
 idm_ec2_instance_type: m5.xlarge
+#idm_ec2_instance_type: t2.large
 idm_ec2_keypair: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC/UQ6SVJ0Jk/fDfLpecIIIfTe3+Ry+oaF8AFKAZwXJ8xMMmrPcPX1JTb4k/keVPT5liqYLb6pxO9yKUb1fLIKXQj+6OaDFaq7J8O3ad5AjpwMH97pynPtjUnltDIPbMTLOUHMZCrvF/PIn0iQ2lfl48lADD/S/tOPh34TI8fv+miuCO7Gdsk9DqT9SxIRG4oKj7ZKp/PKyWuPheRhJ0KiSeFIHR3dXSJnLiL+JkdBotB4IK78Pygwo6P6Wyl2P4gobkKhy/YuTiSImbaN0G8YMJrUu1EzYQ5QlmNqPKVuFH8te41vxmTX47N5h8vfO9c00YFC5H9mtsPMGXYRTiRkB
 
 # Default vars, not needed to be modified
 idm_provision_users: true
+idm_provision_groups: true
+idm_provision_groups_groups:
+  - workshopusers
+  - adminusers
 idm_provision_users_group: workshopusers
 idm_provision_users_prefix: user
 idm_provision_users_suffix:
 idm_provision_users_start: 0
-idm_provision_users_count: 50
+idm_provision_users_count: 10
 idm_provision_users_password: r3dh4t1!
 
 idm_server_admin_password: s3cur3P455W0rd
@@ -28,6 +33,7 @@ idm_server_install_base_command: ipa-server-install --unattended
 idm_server_pkgs:
   - bind
   - bind-dyndb-ldap
+  - bind-utils
   - ipa-server
   #- python2-devel
   - openldap-devel
@@ -72,7 +78,7 @@ idm_server_install_options:
   - "--admin-password={{ idm_server_admin_password }}"
   - "--mkhomedir"
   - "--hostname={{ idm_server_fqdn | default(ansible_fqdn) }}"
-  - "--no-ntp"
+#  - "--no-ntp"
 #  - "--ip-address={{ idm_server_ip }}"
 #  - "--no-host-dns"
 #  - "--idstart=5000"
