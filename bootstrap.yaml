@@ -1,0 +1,24 @@
+---
+- name: Deploy Bastion Host on RHOE AWS
+  import_playbook: bastion-on-rhoe-aws/deploy.yaml
+  when: (deploy_bastion is defined) and deploy_bastion|bool
+
+- name: Deploy Red Hat Identity Management on RHOE AWS
+  import_playbook: rh-idm-on-rhoe-aws/deploy.yaml
+  when: (deploy_rh_idm is defined) and deploy_rh_idm|bool
+
+- name: Deploy Keystone on RHOE AWS
+  import_playbook: keystone-on-rhoe-aws/deploy.yaml
+  when: (deploy_keystone is defined) and deploy_keystone|bool
+
+- name: Deploy GitLab on RHOE AWS
+  import_playbook: gitlab-on-rhoe-aws/deploy.yaml
+  when: (deploy_gitlab is defined) and deploy_gitlab|bool
+
+- name: Deploy OpenShift 4 on RHOE AWS
+  import_playbook: ocp4-on-rhoe-aws/deploy.yaml
+  when: (deploy_ocp4 is defined) and deploy_ocp4|bool
+
+- name: Deploy OpenShift 4 Workload - Machine Learning
+  import_playbook: ocp4-workshop-machinelearning/deploy.yaml
+  when: deploy_ocp4_workload_machinelearning_workshop|bool
