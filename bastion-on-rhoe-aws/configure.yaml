@@ -44,7 +44,7 @@
 - name: Move & Set executable bits for binaries
   ansible.builtin.copy:
     src: "/opt/{{ binary_item }}"
-    dest: "/usr/local/bin/{{ binary_item }}"
+    dest: "/usr/bin/{{ binary_item }}"
     remote_src: yes
     mode: '0755'
   loop:
@@ -53,6 +53,12 @@
     - kubectl
   loop_control:
     loop_var: binary_item
+
+- name: Set path properly...
+  lineinfile:
+    dest: /etc/profile.d/localbin.sh
+    line: 'PATH="/usr/local/bin:$PATH"'
+    mode: 0755
 
 - name: Disable SELinux
   selinux:
