@@ -1,0 +1,18 @@
+---
+# This bastion should already be created
+aws_region: us-east-2
+target_aws_access_key: someAccessKey
+target_aws_access_secret: someSecretString
+
+bastion_hostname: bastion
+
+ocp_cluster_name: ocp
+ocp_pull_secret: '{ "your": {"pull": "secret"}}'
+ocp_ssh_public_key: "ssh-rsa yourSSHPubKey"
+ocp_control_plane_ec2_instance_type: m5.xlarge
+ocp_app_nodes_ec2_instance_type: m5.2xlarge
+ocp_app_node_count: 3
+
+# No need to edit/override these really
+oc_download_link: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
+openshift_install_download_link: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-install-linux.tar.gz

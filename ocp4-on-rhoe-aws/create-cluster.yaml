@@ -1,0 +1,126 @@
+---
+- name: Check for kubectl binary
+  command: "which kubectl"
+  register: kubectl_result
+  ignore_errors: true
+
+- name: Check for oc binary
+  command: "which oc"
+  register: oc_result
+  ignore_errors: true
+
+- name: Check for openshift-install binary
+  command: "which openshift-install"
+  register: openshift_install_result
+  ignore_errors: true
+
+- name: Install oc and kubectl
+  block:
+  - name: Download oc & kubectl binaries
+    get_url:
+      url: "{{ oc_download_link }}"
+      dest: /opt/oc.tar.gz
+
+  - name: Extract binary packages
+    ansible.builtin.unarchive:
+      src: "/opt/oc.tar.gz"
+      dest: /opt
+      remote_src: yes
+
+  - name: Move & Set executable bits for binaries
+    ansible.builtin.copy:
+      src: "/opt/{{ binary_item }}"
+      dest: "/usr/bin/{{ binary_item }}"
+      remote_src: yes
+      mode: '0755'
+    loop:
+      - oc
+      - kubectl
+    loop_control:
+      loop_var: binary_item
+  when: oc_result.rc != 0
+
+- name: Install openshift-install binary
+  block:
+
+  - name: Download openshift-install binary
+    get_url:
+      url: "{{ openshift_install_download_link }}"
+      dest: /opt/openshift-install.tar.gz
+
+  - name: Extract binary packages
+    ansible.builtin.unarchive:
+      src: "/opt/openshift-install.tar.gz"
+      dest: /opt
+      remote_src: yes
+
+  - name: Move & Set executable bits for binaries
+    ansible.builtin.copy:
+      src: "/opt/{{ binary_item }}"
+      dest: "/usr/bin/{{ binary_item }}"
+      remote_src: yes
+      mode: '0755'
+    loop:
+      - oc
+      - kubectl
+    loop_control:
+      loop_var: binary_item
+  when: openshift_install_result.rc != 0
+
+- name: Create AWS home dir dir
+  file:
+    path: /root/.aws/
+    owner: root
+    group: root
+    state: directory
+
+- name: Template AWS Credentials file
+  template:
+    src: templates/aws.credentials.j2
+    dest: /root/.aws/credentials
+    owner: root
+    group: root
+
+- name: Create openshift-install dir
+  file:
+    path: /opt/ocp4-cluster
+    owner: root
+    group: root
+    state: directory
+
+- name: Check for existing cluster
+  ansible.builtin.stat:
+    path: /opt/ocp4-cluster/auth/kubeadmin-password
+  register: pathToKubeadminPW
+
+- name: Template the openshift-install config
+  template:
+    src: templates/openshift.install-config.yaml.j2
+    dest: /opt/ocp4-cluster/install-config.yaml
+    owner: root
+    group: root
+  when: not pathToKubeadminPW.stat.exists
+
+- name: Kick off cluster creation...this will take a while
+  shell: openshift-install create cluster --dir=/opt/ocp4-cluster
+  when: not pathToKubeadminPW.stat.exists
+
+- name: Read in kubeadmin-password file
+  ansible.builtin.slurp:
+    src: /opt/ocp4-cluster/auth/kubeadmin-password
+  register: kubeadmin_password
+
+- name: Read in cluster metadata file
+  ansible.builtin.slurp:
+    src: /opt/ocp4-cluster/metadata.json
+  register: cluster_metadata
+
+- name: Print out the information needed to access the cluster
+  debug:
+    msg:
+    - "========================================================"
+    - "Your OpenShift cluster is ready!"
+    - "========================================================"
+    - "Cluster Name: {{ (cluster_metadata.content | b64decode | from_json ).clusterName }}"
+    - "Cluster Console: https://console-openshift-console.apps.{{ (cluster_metadata.content | b64decode | from_json).aws.clusterDomain }}"
+    - "kubeadmin Password: {{ kubeadmin_password.content | b64decode }}"

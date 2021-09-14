@@ -1,0 +1,70 @@
+---
+- name: Deploy OpenShift via a Bastion Host on Red Hat Open Environments, AWS
+  hosts: localhost
+  gather_facts: false
+  vars:
+    r53_records: []
+
+  tasks:
+  
+  - name: Include shared vars
+    include_vars: vars.yaml
+
+  - name: Set preflight facts for current working directory
+    set_fact:
+      cwd: "{{ playbook_dir.split('/') }}"
+
+  - name: Set preflight facts for roles
+    set_fact:
+      nu_roles_path: "{{ cwd[:-1] | join('/') }}/roles"
+
+  - name: Scope RHOE AWS Environment
+    include_role:
+      name: "{{ nu_roles_path }}/scope-rhoe-aws"
+
+  - name: Query EC2 Instance for Bastion Host
+    community.aws.ec2_instance_info:
+      region: "{{ aws_region }}"
+      filters:
+        "tag:guid": "{{ rhoe_guid }}"
+        "tag:owner": "{{ rhoe_email_owner }}"
+        "tag:email": "{{ rhoe_email_owner }}"
+        "tag:Name": "{{ bastion_hostname }}"
+        "tag:base_domain": "{{ aws_guid_public_zone_name }}"
+        "tag:deployer": grain-tower
+        instance-state-name: ["running", "stopped"]
+    register: aws_ec2_instance
+
+  - name: Set facts for bastion
+    when: aws_ec2_instance.instances|length > 0
+    set_fact:
+      bastion_fqdn: "{{ bastion_hostname }}.{{ aws_guid_public_zone_name }}"
+      bastion_external_ip: "{{ aws_ec2_instance.instances[0].public_ip_address }}"
+
+  - name: Add Bastion Host to run-time inventory
+    add_host:
+      hostname: "{{ bastion_external_ip }}"
+      groups:
+      - bastion
+      ansible_user: ec2-user
+      ansible_connection: ssh
+      ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+      ansible_python_interpreter: "/usr/libexec/platform-python"
+      aws_guid_public_zone_name: "{{ aws_guid_public_zone_name }}"
+      aws_key: "{{ target_aws_access_key }}"
+      aws_secret: "{{ target_aws_access_secret }}"
+      rhoe_email_owner: "{{ rhoe_email_owner }}"
+
+- name: Connect to Bastion and create OpenShift Cluster
+  hosts: bastion
+  become: yes
+  gather_facts: false
+  tasks:
+  
+  - name: Include shared vars
+    include_vars: vars.yaml
+    
+  - name: Create OpenShift Cluster
+    block:
+    - name: Kick off cluster creation
+      include_tasks: create-cluster.yaml
