@@ -45,12 +45,12 @@
   
   - name: Check for an openshift cluster configuration
     ansible.builtin.stat:
-      path: /opt/openshift-install/kubeconfig
+      path: /opt/ocp4-cluster/auth/kubeconfig
     register: kubeconfig_file
 
   - name: No kubeconfig found!
     fail:
-      msg: "No kubeconfig found at /opt/openshift-install/kubeconfig!"
+      msg: "No kubeconfig found at /opt/ocp4-cluster/auth/kubeconfig!"
     when: not kubeconfig_file.exists
 
   - name: Clone down the agnosticd deployer
@@ -67,4 +67,4 @@
     - name: Kick things off
       include_tasks: /opt/agnosticd/roles/ocp4-workload-machinelearning/tasks/main.yml    
     environment:
-      KUBECONFIG: "/opt/openshift-installs/kubeconfig"
+      KUBECONFIG: "/opt/ocp4-cluster/auth/kubeconfig"
