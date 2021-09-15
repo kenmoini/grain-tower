@@ -58,6 +58,11 @@
   - name: Continue to deploy workload
     block:
 
+    - name: Clean up previous agnosticd source
+      file:
+        path: /opt/agnosticd/
+        state: absent
+
     - name: Clone down agnosticd
       ansible.builtin.git:
         repo: "{{ agnosticd_repo }}"
