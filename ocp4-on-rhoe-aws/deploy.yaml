@@ -22,28 +22,13 @@
     include_role:
       name: "{{ nu_roles_path }}/scope-rhoe-aws"
 
-  - name: Query EC2 Instance for Bastion Host
-    community.aws.ec2_instance_info:
-      region: "{{ aws_region }}"
-      filters:
-        "tag:guid": "{{ rhoe_guid }}"
-        "tag:owner": "{{ rhoe_email_owner }}"
-        "tag:email": "{{ rhoe_email_owner }}"
-        "tag:Name": "{{ bastion_hostname }}"
-        "tag:base_domain": "{{ aws_guid_public_zone_name }}"
-        "tag:deployer": grain-tower
-        instance-state-name: ["running", "stopped"]
-    register: aws_ec2_instance
-
-  - name: Set facts for bastion
-    when: aws_ec2_instance.instances|length > 0
-    set_fact:
-      bastion_fqdn: "{{ bastion_hostname }}.{{ aws_guid_public_zone_name }}"
-      bastion_external_ip: "{{ aws_ec2_instance.instances[0].public_ip_address }}"
+  - name: Scope RHOE AWS Environment, Bastion Host
+    include_role:
+      name: "{{ nu_roles_path }}/find-bastion-rhoe-aws"
 
   - name: Add Bastion Host to run-time inventory
     add_host:
-      hostname: "{{ bastion_external_ip }}"
+      hostname: "{{ bastion_info.public_ip }}"
       groups:
       - bastion
       ansible_user: ec2-user
@@ -63,7 +48,7 @@
   
   - name: Include shared vars
     include_vars: vars.yaml
-    
+
   - name: Create OpenShift Cluster
     block:
     - name: Kick off cluster creation
