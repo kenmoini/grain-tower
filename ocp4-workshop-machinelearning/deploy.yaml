@@ -26,6 +26,7 @@
   - name: Add Bastion host to inventory
     add_host:
       hostname: '{{ bastion_info.public_ip }}'
+      public_ip: '{{ bastion_info.public_ip }}'
       groups:
       - bastion
       ansible_user: ec2-user
@@ -37,6 +38,12 @@
 
 - name: Connect to the Bastion and deploy the workshop
   hosts: bastion
+  become: yes
+  gather_facts: true
+
+  environment:
+    K8S_AUTH_KUBECONFIG: /opt/ocp4-cluster/auth/kubeconfig
+    KUBECONFIG: /opt/ocp4-cluster/auth/kubeconfig
 
   tasks:
   
@@ -48,23 +55,59 @@
       path: /opt/ocp4-cluster/auth/kubeconfig
     register: kubeconfig_file
 
-  - name: No kubeconfig found!
-    fail:
-      msg: "No kubeconfig found at /opt/ocp4-cluster/auth/kubeconfig!"
-    when: not kubeconfig_file.exists
-
-  - name: Clone down the agnosticd deployer
-    ansible.builtin.git:
-      repo: "{{ agnosticd_repo }}"
-      dest: /opt/agnosticd
-      clone: yes
-      update: yes
-      single_branch: yes
-      version: "{{ agnosticd_branch }}"
-
-  - name: Run the ML workload deployer from agnosticd
+  - name: Continue to deploy workload
     block:
-    - name: Kick things off
-      include_tasks: /opt/agnosticd/roles/ocp4-workload-machinelearning/tasks/main.yml    
-    environment:
-      KUBECONFIG: "/opt/ocp4-cluster/auth/kubeconfig"
+
+    - name: Clone down agnosticd
+      ansible.builtin.git:
+        repo: "{{ agnosticd_repo }}"
+        dest: "/opt/agnosticd"
+        clone: yes
+        update: yes
+        version: "{{ agnosticd_branch }}"
+
+    - name: Create playbook bootstrap
+      copy:
+        dest: /opt/agnosticd/ansible/roles/ocp4-workload-machinelearning/deploy.yml
+        content: |
+          ---
+          - name: Deploy the Machine Learning Workshop to a target cluster
+            hosts: localhost
+            tasks:
+
+            - name: Kick things off
+              include_tasks: tasks/main.yml
+
+    - name: Install Ansible Collections
+      shell: "ansible-galaxy collection install {{ collection_item }}"
+      loop_control:
+        loop_var: collection_item
+      loop:
+      - community.kubernetes
+      - community.okd
+
+    - name: Run the deployer
+      shell: >
+        ansible-playbook
+        -e "silent={{ silent }}"
+        -e "become_override={{ become_override }}"
+        -e "ACTION={{ ACTION }}"
+        -e "num_users={{ num_users }}"
+        -e "ocp_username={{ ocp_username }}"
+        -e "workshop_openshift_user_name={{ workshop_openshift_user_name }}"
+        -e "workshop_openshift_user_password={{ workshop_openshift_user_password }}"
+        -e "workshop_openshift_admin_password={{ workshop_openshift_admin_password }}"
+        -e "repo_owner={{ repo_owner }}"
+        -e "repo={{ repo }}"
+        -e "deploy_demo={{ deploy_demo }}"
+        -e "demo_ml_project_namespace={{ demo_ml_project_namespace }}"
+        -e "demo_ml_wait_for_service_build={{ demo_ml_wait_for_service_build }}"
+        -e "demo_ml_run_new_builds_if_already_built={{ demo_ml_run_new_builds_if_already_built }}"
+        -e "guides_url={{ guides_url }}"
+        -e "labs_url={{ labs_url }}"
+        -e "aws_region={{ aws_region }}"
+        -e "agnosticd_branch={{ agnosticd_branch }}"
+        -e "agnosticd_url={{ agnosticd_url }}"
+        -e "agnosticd_repo={{ agnosticd_repo }}"
+        /opt/agnosticd/ansible/roles/ocp4-workload-machinelearning/deploy.yml
+    when: kubeconfig_file.stat.exists

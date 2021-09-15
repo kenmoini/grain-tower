@@ -3,13 +3,13 @@ silent: False
 become_override: False
 ACTION: create
 num_users: 3
-ocp_username: opentlc-mgr
+ocp_username: kubeadmin
 workshop_openshift_user_name: userXX
 workshop_openshift_user_password: r3dh4t1!
 workshop_openshift_admin_password: 'r3dh4t1!'
 repo_owner: kenmoini
 repo: machine-learning-workshop-labs
-deploy_demo: true
+deploy_demo: false
 
 demo_ml_project_namespace: demo-ml
 demo_ml_wait_for_service_build: false
