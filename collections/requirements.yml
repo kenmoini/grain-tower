@@ -1,5 +1,7 @@
 ---
 collections:
   - name: community.aws
+  - name: community.kubernetes
+  - name: community.okd
   - name: amazon.aws
   - name: ansible.posix
