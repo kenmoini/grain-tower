@@ -103,5 +103,23 @@ With the Credentials, Inventory, and Project setup and synced, you can now creat
 - Set the Inventory to the localhost Inventory
 - Select the Project
 - Choose the `bootstrap.yaml` Playbook (unless making individual Job Templates for each workload, extra work and not able to compose as Workflow Jobs due to Credential substitution limitations)
+- Check the "Prompt On Launch" checkboxes for Credentials and Extra Variables
 - In the Extra Variables section, you can provide the same variables as demonstrated in `example.secret-vars.yaml` to override the executed Playbook defaults.  Any other variables can also be overriden here
 - Optionally, instead of simply defining all Extra Variables to compose the deployment, set them as Survey inputs to be set by the executing user
+
+Ideally there's a healthy split of Extra Variables defined, and Survey inputs - this is a suggested Extra Variables baseline:
+
+```yaml
+---
+bastion_ec2_keypair: "{{ shared_public_key }}"
+gitlab_ec2_keypair: "{{ shared_public_key }}"
+idm_ec2_keypair: "{{ shared_public_key }}"
+ocp_ssh_public_key: "{{ shared_public_key }}"
+keystone_ssh_public_key: "{{ shared_public_key }}"
+# Variable overrides needed for OCP cluster deployment:
+#target_aws_access_key: AKISOMEKEYID
+#target_aws_access_secret: someOtherLongString
+#ocp_pull_secret: '{"your":{"pull": "secret"}}'
+```
+
+And then set up a Survey to prompt for the `shared_public_key` variable, and the true/false values for workload deployments.
