@@ -11,6 +11,11 @@
     update_cache: yes
   register: update_task_result
 
+- name: Enable EPEL
+  yum:
+    name: "{{ epel_link }}"
+    state: latest
+
 - name: Install base packages
   yum:
     name: "{{ base_pkgs }}"
@@ -19,6 +24,16 @@
   register: result
   retries: 3
   until: result is succeeded
+
+- name: Install PIP packages
+  pip:
+    name: "{{ pip_item }}"
+    state: latest
+    executable: pip3
+  loop_control:
+    loop_var: pip_item
+  loop:
+    - openshift
 
 - name: Download oc & kubectl binaries
   get_url:
@@ -70,6 +85,20 @@
     name: firewalld
     state: started
     enabled: true
+
+- name: Clean up downloaded files
+  file:
+    state: absent
+    path: "{{ path_item }}"
+  loop_control:
+    loop_var: path_item
+  loop:
+    - /opt/openshift-install.tar.gz
+    - /opt/openshift-install
+    - /opt/oc.tar.gz
+    - /opt/oc
+    - /opt/kubectl
+    - /opt/README.md
       
 - name: Reboot immediately if there were new packages installed
   shell: "sleep 5 && reboot"

@@ -19,8 +19,10 @@ base_pkgs:
   - wget
   - firewalld
   - python3-pip
+  - ansible
 
 oc_download_link: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
 openshift_install_download_link: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-install-linux.tar.gz
+epel_link: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 
 disable_selinux: true
