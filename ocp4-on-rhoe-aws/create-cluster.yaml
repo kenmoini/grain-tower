@@ -61,8 +61,7 @@
       remote_src: yes
       mode: '0755'
     loop:
-      - oc
-      - kubectl
+      - openshift-install
     loop_control:
       loop_var: binary_item
   when: openshift_install_result.rc != 0
