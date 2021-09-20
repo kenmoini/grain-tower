@@ -15,6 +15,7 @@
   yum:
     name: "{{ epel_link }}"
     state: latest
+    disable_gpg_check: yes
 
 - name: Install base packages
   yum:
