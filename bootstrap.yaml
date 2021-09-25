@@ -21,4 +21,4 @@
 
 - name: Deploy OpenShift 4 Workload - Machine Learning
   import_playbook: ocp4-workshop-machinelearning/deploy.yaml
-  when: deploy_ocp4_workload_machinelearning_workshop|bool
+  when: (deploy_ocp4_workload_machinelearning_workshop is defined) and deploy_ocp4_workload_machinelearning_workshop|bool

@@ -7,6 +7,10 @@ keystone_keypair_name: keystone_keypair
 keystone_ec2_instance_type: m5.xlarge
 keystone_ec2_keypair: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC/UQ6SVJ0Jk/fDfLpecIIIfTe3+Ry+oaF8AFKAZwXJ8xMMmrPcPX1JTb4k/keVPT5liqYLb6pxO9yKUb1fLIKXQj+6OaDFaq7J8O3ad5AjpwMH97pynPtjUnltDIPbMTLOUHMZCrvF/PIn0iQ2lfl48lADD/S/tOPh34TI8fv+miuCO7Gdsk9DqT9SxIRG4oKj7ZKp/PKyWuPheRhJ0KiSeFIHR3dXSJnLiL+JkdBotB4IK78Pygwo6P6Wyl2P4gobkKhy/YuTiSImbaN0G8YMJrUu1EzYQ5QlmNqPKVuFH8te41vxmTX47N5h8vfO9c00YFC5H9mtsPMGXYRTiRkB
 
+keystone_database_name: keystonedb
+keystone_database_user: keystonedbu
+keystone_database_pass: keystonedbpw
+
 keystone_server_pkgs:
   - curl
   - git
@@ -22,8 +26,13 @@ keystone_server_pkgs:
   - ipa-client
   - python3-pip
   - mariadb
+  - mariadb-server
   - python3-openstackclient
   - openstack-selinux
+  - openstack-keystone
+  - httpd
+  - mod_wsgi
+  - python3-mod_wsgi
 
 keystone_server_fqdn: "{{ keystone_hostname }}.{{ aws_guid_public_zone_name }}"
 

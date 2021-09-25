@@ -11,6 +11,12 @@
     update_cache: yes
   register: update_task_result
 
+- name: Enable RDO Repo
+  yum:
+    name: "{{ openstack_repo_link }}"
+    state: latest
+    disable_gpg_check: yes
+
 - name: Install Keystone server packages
   yum:
     name: "{{ keystone_server_pkgs }}"
@@ -83,3 +89,19 @@
     loop_var: port_item
   loop:
     - 8080
+
+- name: Enable MariaDB
+  service:
+    name: mariadb
+    state: started
+    enabled: yes
+
+- name: Create Keystone Database
+  shell: "mysql -u root -e 'CREATE DATABASE {{ keystone_database_name }};'"
+  args:
+    creates: "/var/lib/mysql/{{ keystone_database_name }}"
+
+- name: Create Keystone User
+  shell: "mysql -u root -e 'CREATE USER {{ keystone_database_user }}@localhost IDENTIFIED BY \'{{ keystone_database_pass }}\'; GRANT ALL PRIVILEGES ON {{ keystone_database_name }}.* TO \'{{ keystone_database_user }}\'@\'localhost\'; GRANT ALL PRIVILEGES ON {{ keystone_database_name }}.* TO \'{{ keystone_database_user }}\'@\'%\'; FLUSH PRIVILEGES;' && touch /var/lib/mysql/{{ keystone_database_user }}"
+  args:
+    creates: "/var/lib/mysql/{{ keystone_database_user }}"
