@@ -31,7 +31,6 @@ keystone_server_pkgs:
   - openstack-selinux
   - openstack-keystone
   - httpd
-  - mod_wsgi
   - python3-mod_wsgi
 
 keystone_server_fqdn: "{{ keystone_hostname }}.{{ aws_guid_public_zone_name }}"
