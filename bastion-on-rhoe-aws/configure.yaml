@@ -75,6 +75,7 @@
     dest: /etc/profile.d/localbin.sh
     line: 'PATH="/usr/local/bin:$PATH"'
     mode: 0755
+    create: yes
 
 - name: Disable SELinux
   selinux:
