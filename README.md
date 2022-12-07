@@ -47,6 +47,20 @@ The primary entry point of this automation collection is via `./bootstrap.yaml` 
 
 ## Using via Ansible CLI
 
+### Install the Ansible Collections & Pip Modules
+
+If this is your first time running these Playbooks then you'll likely need to install the Ansible Collections and Pip Python Modules on your terminal:
+
+```bash=
+# Install the pip modules
+python3 -m pip install --upgrade -r requirements.txt
+
+# Install the reqiuired Ansible Collections
+ansible-galaxy collection install -r ./collections/requirements.yml
+```
+
+### Creating the secret variable file
+
 With your AWS keys in place and an SSH Key Pair at hand, you can create a file called `secret-vars.yaml` where you can include variable overrides - see `example.secret-vars.yaml` for standard variables used.
 
 ```bash
@@ -59,6 +73,8 @@ nano secrets-vars.yaml
 ```
 
 You could go a step futher and even encrypt this `secret-vars.yaml` file with Ansible Vault.
+
+### Running the Playbooks
 
 Next you'll run the Bootstrap Playbook with that variable file:
 
