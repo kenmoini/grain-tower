@@ -59,7 +59,7 @@
         deployment: bastion
 
   - name: Find RHEL AMI
-    amazon.aws.ec2_ami_facts:
+    amazon.aws.ec2_ami_info:
       region: "{{ aws_region }}"
       owners: 309956199498
       filters:
@@ -129,7 +129,7 @@
 
 - name: Configure Bastion Host
   hosts: bastion
-  become: yes
+  become: true
   gather_facts: false
   tasks:
   
