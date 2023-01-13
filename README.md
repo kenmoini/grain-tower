@@ -72,7 +72,7 @@ vi secrets-vars.yaml
 nano secrets-vars.yaml
 ```
 
-You could go a step futher and even encrypt this `secret-vars.yaml` file with Ansible Vault.
+You could go a step futher and even encrypt this `secret-vars.yaml` file with Ansible Vault: `ansible-vault encrypt secret-vars.yaml` and then run the playbook with the `--ask-vault-pass`.
 
 ### Running the Playbooks
 
@@ -127,15 +127,16 @@ Ideally there's a healthy split of Extra Variables defined, and Survey inputs - 
 
 ```yaml
 ---
+shared_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 bastion_ec2_keypair: "{{ shared_public_key }}"
 gitlab_ec2_keypair: "{{ shared_public_key }}"
 idm_ec2_keypair: "{{ shared_public_key }}"
 ocp_ssh_public_key: "{{ shared_public_key }}"
 keystone_ssh_public_key: "{{ shared_public_key }}"
 # Variable overrides needed for OCP cluster deployment:
-#target_aws_access_key: AKISOMEKEYID
-#target_aws_access_secret: someOtherLongString
-#ocp_pull_secret: '{"your":{"pull": "secret"}}'
+#ocp_pull_secret: "{{ lookup('file', '~/rh-ocp-pull-secret.json') }}"
+#target_aws_access_key: "{{ lookup('ansible.builtin.ini', 'aws_access_key_id', section='default', file='~/.aws/credentials') }}"
+#target_aws_access_secret: "{{ lookup('ansible.builtin.ini', 'aws_secret_access_key', section='default', file='~/.aws/credentials') }}"
 ```
 
 And then set up a Survey to prompt for the `shared_public_key` variable, and the true/false values for workload deployments.
