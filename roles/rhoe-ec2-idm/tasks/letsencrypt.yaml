@@ -147,7 +147,7 @@
         src: /opt/0000_cert.pem
         dest: /var/lib/ipa/certs/httpd.crt
         mode: 0644
-        user: root
+        owner: root
         group: root
         backup: true
         remote_src: true

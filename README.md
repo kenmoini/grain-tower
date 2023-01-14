@@ -8,8 +8,8 @@ The intended environment is Red Hat Open Environments, AWS in most cases.  For I
 
 With little more than a set of AWS Keys and Machine/SSH Credentials you can deploy a number of workloads such as:
 
+- A Bastion Host!
 - Red Hat Identity Management
-- [Legacy WIP] A Bastion Host!
 - [Legacy WIP] GitLab
 - [Legacy WIP] Red Hat OpenShift Container Platform, via the Bastion Host
 - [Legacy WIP] Keystone
@@ -78,10 +78,10 @@ You could go a step futher and even encrypt this `secret-vars.yaml` file with An
 
 ### Running the Playbooks
 
-Next you'll run the Bootstrap Playbook with that variable file:
+Next you'll run the Deploy Playbook with that variable file:
 
 ```bash
-ansible-playbook -e "@secret-vars.yaml" bootstrap.yaml
+ansible-playbook -e "@secret-vars.yaml" deploy.yaml
 ```
 
 ---
@@ -120,7 +120,7 @@ With the Credentials, Inventory, and Project setup and synced, you can now creat
 - Give it a Name, something like `Grain Tower - Deploy Workloads to RHOE AWS`
 - Set the Inventory to the localhost Inventory
 - Select the Project
-- Choose the `bootstrap.yaml` Playbook (unless making individual Job Templates for each workload, extra work and not able to compose as Workflow Jobs due to Credential substitution limitations)
+- Choose the `deploy.yaml` Playbook (unless making individual Job Templates for each workload, extra work and not able to compose as Workflow Jobs due to Credential substitution limitations)
 - Check the "Prompt On Launch" checkboxes for Credentials and Extra Variables
 - In the Extra Variables section, you can provide the same variables as demonstrated in `example.secret-vars.yaml` to override the executed Playbook defaults.  Any other variables can also be overriden here
 - Optionally, instead of simply defining all Extra Variables to compose the deployment, set them as Survey inputs to be set by the executing user

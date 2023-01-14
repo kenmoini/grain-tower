@@ -1,0 +1,121 @@
+---
+- name: Wait for SSH to come up
+  wait_for_connection:
+    delay: 10
+    timeout: 360
+
+- name: Update system packages
+  yum:
+    name: "*"
+    state: latest
+    update_cache: true
+  register: update_task_result
+
+- name: Enable EPEL
+  yum:
+    name: "{{ epel_link }}"
+    state: latest
+    disable_gpg_check: true
+
+- name: Install base packages
+  yum:
+    name: "{{ base_pkgs }}"
+    state: present
+  delay: 10
+  register: result
+  retries: 3
+  until: result is succeeded
+
+- name: Install PIP packages
+  pip:
+    name: "{{ pip_item }}"
+    state: latest
+    executable: pip3
+  loop_control:
+    loop_var: pip_item
+  loop:
+    - openshift
+
+- name: Download oc & kubectl binaries
+  get_url:
+    url: "{{ oc_download_link }}"
+    dest: /opt/oc.tar.gz
+
+- name: Download openshift-install binary
+  get_url:
+    url: "{{ openshift_install_download_link }}"
+    dest: /opt/openshift-install.tar.gz
+
+- name: Extract binary packages
+  ansible.builtin.unarchive:
+    src: "/opt/{{ tar_item }}"
+    dest: /opt
+    remote_src: true
+  loop:
+    - openshift-install.tar.gz
+    - oc.tar.gz
+  loop_control:
+    loop_var: tar_item
+
+- name: Move & Set executable bits for binaries
+  ansible.builtin.copy:
+    src: "/opt/{{ binary_item }}"
+    dest: "/usr/bin/{{ binary_item }}"
+    remote_src: true
+    mode: '0755'
+  loop:
+    - openshift-install
+    - oc
+    - kubectl
+  loop_control:
+    loop_var: binary_item
+
+- name: Set path properly...
+  lineinfile:
+    dest: /etc/profile.d/localbin.sh
+    line: 'PATH="/usr/local/bin:$PATH"'
+    mode: 0755
+    create: true
+
+- name: Disable SELinux
+  selinux:
+    state: disabled
+  when: disable_selinux|bool
+
+- name: Start firewalld
+  service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Clean up downloaded files
+  file:
+    state: absent
+    path: "{{ path_item }}"
+  loop_control:
+    loop_var: path_item
+  loop:
+    - /opt/openshift-install.tar.gz
+    - /opt/openshift-install
+    - /opt/oc.tar.gz
+    - /opt/oc
+    - /opt/kubectl
+    - /opt/README.md
+      
+- name: Reboot immediately if there were new packages installed
+  shell: "sleep 5 && reboot"
+  async: 1
+  poll: 0
+  when: update_task_result is changed
+
+- name: Wait for the reboot to complete if there were new packages installed
+  wait_for_connection:
+    connect_timeout: 20
+    sleep: 5
+    delay: 5
+    timeout: 300
+  when: update_task_result is changed
+  delay: 10
+  register: wait_result
+  retries: 3
+  until: wait_result is succeeded

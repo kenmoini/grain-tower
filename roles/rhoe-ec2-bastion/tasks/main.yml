@@ -1,0 +1,17 @@
+---
+# tasks file for rhoe-ec2-bastion
+
+- name: Deploy the Bastion Environment
+  when: action == "deploy"
+  block:
+    - name: Create the AWS Infrastructure
+      when: stage == "aws_infra"
+      ansible.builtin.include_tasks: aws_infra_deploy.yaml
+
+    - name: Configure the Bastion instance
+      when: stage == "configure"
+      ansible.builtin.include_tasks: configure.yaml
+
+- name: Destroy the Bastion Environment
+  when: action == "destroy"
+  ansible.builtin.include_tasks: destroy.yaml

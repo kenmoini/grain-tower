@@ -31,10 +31,16 @@
           vars:
             stage: aws_infra
 
-# ============================================================
-# Per-Workload Configuration
-# ============================================================
+        - name: RHOE - EC2 - Bastion | AWS Infrastructure
+          when: (deploy_bastion is defined) and deploy_bastion | bool
+          ansible.builtin.include_role:
+            name: "rhoe-ec2-bastion"
+          vars:
+            stage: aws_infra
 
+# ============================================================
+# Per-Workload Configuration - IDM
+# ============================================================
 - name: RHOE - EC2 - IDM | Configure
   hosts: idm
   become: true
@@ -46,5 +52,22 @@
     - name: RHOE - EC2 - IDM | Configure
       ansible.builtin.include_role:
         name: "rhoe-ec2-idm"
+      vars:
+        stage: configure
+
+
+# ============================================================
+# Per-Workload Configuration - Bastion
+# ============================================================
+- name: RHOE - EC2 - Bastion | Configure
+  hosts: bastion
+  become: true
+  gather_facts: false
+  vars:
+    action: deploy # deploy or destroy
+  tasks:
+    - name: RHOE - EC2 - Bastion | Configure
+      ansible.builtin.include_role:
+        name: "rhoe-ec2-bastion"
       vars:
         stage: configure
