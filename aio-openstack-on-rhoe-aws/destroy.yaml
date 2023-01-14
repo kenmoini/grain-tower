@@ -1,5 +1,5 @@
 ---
-- name: Destroy a Bastion Host on Red Hat Open Environments, AWS
+- name: Destroy AIO OpenStack on Red Hat Open Environments, AWS
   hosts: localhost
   gather_facts: false
   vars:
@@ -22,14 +22,14 @@
     include_role:
       name: "{{ nu_roles_path }}/scope-rhoe-aws"
 
-  - name: Query EC2 Instance for Bastion Host
+  - name: Query EC2 Instance for AIO OpenStack Server
     community.aws.ec2_instance_info:
       region: "{{ aws_region }}"
       filters:
         "tag:guid": "{{ rhoe_guid }}"
         "tag:owner": "{{ rhoe_email_owner }}"
         "tag:email": "{{ rhoe_email_owner }}"
-        "tag:Name": "{{ bastion_hostname }}"
+        "tag:Name": "{{ openstack_hostname }}"
         "tag:base_domain": "{{ aws_guid_public_zone_name }}"
         "tag:deployer": grain-tower
         instance-state-name: ["running", "stopped"]
@@ -39,18 +39,18 @@
     when: aws_ec2_instance.instances|length > 0
     set_fact:
       r53_records:
-        - name: "{{ bastion_hostname }}.{{ aws_guid_public_zone_name }}"
+        - name: "{{ openstack_hostname }}.{{ aws_guid_public_zone_name }}"
           type: A
           ttl: 300
           value: "{{ aws_ec2_instance.instances[0].public_ip_address }}"
-        - name: "*.{{ bastion_hostname }}.{{ aws_guid_public_zone_name }}"
+        - name: "*.{{ openstack_hostname }}.{{ aws_guid_public_zone_name }}"
           type: A
           ttl: 300
           value: "{{ aws_ec2_instance.instances[0].public_ip_address }}"
 
   #======================================================================== AWS INFRASTRUCTURE
     
-  - name: Delete Route53 A Record Entries for Bastion Host
+  - name: Delete Route53 A Record Entries for AIO OpenStack
     community.aws.route53:
       state: absent
       zone: "{{ aws_guid_public_zone_name }}"
@@ -58,7 +58,7 @@
       type: "{{ record_item.type }}"
       ttl: "{{ record_item.ttl }}"
       value: "{{ record_item.value }}"
-      overwrite: yes
+      overwrite: true
     loop: "{{ r53_records }}"
     loop_control:
       loop_var: record_item
@@ -66,15 +66,15 @@
 
   - name: Delete EC2 instance
     when: aws_ec2_instance.instances|length > 0
-    amazon.aws.ec2:
+    amazon.aws.ec2_instance:
       region: "{{ aws_region }}"
       state: absent
-      wait: yes
+      wait: true
       instance_ids: '{{ aws_ec2_instance.instances[0].instance_id }}'
 
-  - name: Delete Bastion Host Security Group
+  - name: Delete AIO OpenStack Security Group
     amazon.aws.ec2_group:
-      name: bastion-sg
+      name: openstack-sg
       state: absent
       vpc_id: "{{ aws_vpc_id }}"
       region: "{{ aws_region }}"
@@ -82,5 +82,5 @@
   - name: Delete EC2 Key Pair
     amazon.aws.ec2_key:
       region: "{{ aws_region }}"
-      name: "{{ bastion_keypair_name }}"
+      name: "{{ openstack_keypair_name }}"
       state: absent

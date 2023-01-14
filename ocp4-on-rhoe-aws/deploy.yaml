@@ -42,7 +42,7 @@
 
 - name: Connect to Bastion and create OpenShift Cluster
   hosts: bastion
-  become: yes
+  become: true
   gather_facts: false
   tasks:
   

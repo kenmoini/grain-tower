@@ -25,13 +25,13 @@
     ansible.builtin.unarchive:
       src: "/opt/oc.tar.gz"
       dest: /opt
-      remote_src: yes
+      remote_src: true
 
   - name: Move & Set executable bits for binaries
     ansible.builtin.copy:
       src: "/opt/{{ binary_item }}"
       dest: "/usr/bin/{{ binary_item }}"
-      remote_src: yes
+      remote_src: true
       mode: '0755'
     loop:
       - oc
@@ -52,13 +52,13 @@
     ansible.builtin.unarchive:
       src: "/opt/openshift-install.tar.gz"
       dest: /opt
-      remote_src: yes
+      remote_src: true
 
   - name: Move & Set executable bits for binaries
     ansible.builtin.copy:
       src: "/opt/{{ binary_item }}"
       dest: "/usr/bin/{{ binary_item }}"
-      remote_src: yes
+      remote_src: true
       mode: '0755'
     loop:
       - openshift-install

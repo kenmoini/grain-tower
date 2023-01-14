@@ -1,0 +1,22 @@
+---
+# Basic Needed vars
+
+aws_region: us-east-2
+openstack_hostname: openstack
+openstack_keypair_name: openstack_keypair
+openstack_ec2_instance_type: z1d.metal
+openstack_ec2_keypair: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC/UQ6SVJ0Jk/fDfLpecIIIfTe3+Ry+oaF8AFKAZwXJ8xMMmrPcPX1JTb4k/keVPT5liqYLb6pxO9yKUb1fLIKXQj+6OaDFaq7J8O3ad5AjpwMH97pynPtjUnltDIPbMTLOUHMZCrvF/PIn0iQ2lfl48lADD/S/tOPh34TI8fv+miuCO7Gdsk9DqT9SxIRG4oKj7ZKp/PKyWuPheRhJ0KiSeFIHR3dXSJnLiL+JkdBotB4IK78Pygwo6P6Wyl2P4gobkKhy/YuTiSImbaN0G8YMJrUu1EzYQ5QlmNqPKVuFH8te41vxmTX47N5h8vfO9c00YFC5H9mtsPMGXYRTiRkB
+
+openstack_server_pkgs:
+  - curl
+  - git
+  - policycoreutils-python-utils
+  - python3-policycoreutils
+  - openssh-server
+  - openssl
+  - postfix
+  - tzdata
+  - nano
+  - wget
+  - python3-pip
+  - sudo

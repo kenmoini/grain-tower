@@ -58,7 +58,7 @@
       type: "{{ record_item.type }}"
       ttl: "{{ record_item.ttl }}"
       value: "{{ record_item.value }}"
-      overwrite: yes
+      overwrite: true
     loop: "{{ r53_records }}"
     loop_control:
       loop_var: record_item
@@ -66,10 +66,10 @@
 
   - name: Delete EC2 instance
     when: aws_ec2_instance.instances|length > 0
-    amazon.aws.ec2:
+    amazon.aws.ec2_instance:
       region: "{{ aws_region }}"
       state: absent
-      wait: yes
+      wait: true
       instance_ids: '{{ aws_ec2_instance.instances[0].instance_id }}'
 
   - name: Delete Keystone Security Group

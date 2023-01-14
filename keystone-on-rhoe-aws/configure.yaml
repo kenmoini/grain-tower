@@ -8,14 +8,14 @@
   yum:
     name: "*"
     state: latest
-    update_cache: yes
+    update_cache: true
   register: update_task_result
 
 - name: Enable RDO Repo
   yum:
     name: "{{ openstack_repo_link }}"
     state: latest
-    disable_gpg_check: yes
+    disable_gpg_check: true
 
 - name: Install Keystone server packages
   yum:
@@ -70,8 +70,8 @@
 
 - name: Connect to Keystone server and set firewall
   ansible.posix.firewalld:
-    permanent: yes
-    immediate: yes
+    permanent: true
+    immediate: true
     state: enabled
     service: "{{ item }}"
   with_items:
@@ -81,8 +81,8 @@
 
 - name: Connect to Keystone server and set firewall for port 8080
   ansible.posix.firewalld:
-    permanent: yes
-    immediate: yes
+    permanent: true
+    immediate: true
     state: enabled
     port: "{{ port_item }}/tcp"
   loop_control:
@@ -94,7 +94,7 @@
   service:
     name: mariadb
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Create Keystone Database
   shell: "mysql -u root -e 'CREATE DATABASE {{ keystone_database_name }};'"

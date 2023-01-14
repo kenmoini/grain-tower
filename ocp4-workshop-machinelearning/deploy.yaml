@@ -38,7 +38,7 @@
 
 - name: Connect to the Bastion and deploy the workshop
   hosts: bastion
-  become: yes
+  become: true
   gather_facts: true
 
   environment:
@@ -67,8 +67,8 @@
       ansible.builtin.git:
         repo: "{{ agnosticd_repo }}"
         dest: "/opt/agnosticd"
-        clone: yes
-        update: yes
+        clone: true
+        update: true
         version: "{{ agnosticd_branch }}"
 
     - name: Create playbook bootstrap

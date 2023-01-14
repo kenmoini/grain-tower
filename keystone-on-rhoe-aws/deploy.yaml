@@ -84,14 +84,14 @@
     register: rhel_ami
 
   - name: Create EC2 Instance for Keystone Server
-    amazon.aws.ec2:
+    amazon.aws.ec2_instance:
       region: "{{ aws_region }}"
       key_name: "{{ keystone_keypair_name }}"
       instance_type: "{{ keystone_ec2_instance_type }}"
-      image: "{{ (rhel_ami.images | selectattr('name', 'defined') | sort(attribute='creation_date') | last).image_id }}"
-      wait: yes
+      image_id: "{{ (rhel_ami.images | selectattr('name', 'defined') | sort(attribute='creation_date') | last).image_id }}"
+      wait: true
       vpc_subnet_id: "{{ aws_subnet_id }}"
-      assign_public_ip: yes
+      assign_public_ip: true
       group: keystone-sg
       exact_count: 1
       count_tag:
@@ -111,11 +111,11 @@
         - name: "{{ keystone_hostname }}.{{ aws_guid_public_zone_name }}"
           type: A
           ttl: 300
-          value: "{{ aws_ec2_instance.tagged_instances[0].public_ip }}"
+          value: "{{ aws_ec2_instance.instances[0].public_ip }}"
         - name: "*.{{ keystone_hostname }}.{{ aws_guid_public_zone_name }}"
           type: A
           ttl: 300
-          value: "{{ aws_ec2_instance.tagged_instances[0].public_ip }}"
+          value: "{{ aws_ec2_instance.instances[0].public_ip }}"
     
   - name: Create Route53 A Record Entries for Keystone
     community.aws.route53:
@@ -125,7 +125,7 @@
       type: "{{ record_item.type }}"
       ttl: "{{ record_item.ttl }}"
       value: "{{ record_item.value }}"
-      overwrite: yes
+      overwrite: true
     loop: "{{ r53_records }}"
     loop_control:
       loop_var: record_item
@@ -133,7 +133,7 @@
 
   - name: Add the new Keystone Host to a new inventory
     add_host:
-      hostname: '{{ aws_ec2_instance.tagged_instances[0].public_ip }}'
+      hostname: '{{ aws_ec2_instance.instances[0].public_ip }}'
       groups:
       - keystone
       ansible_user: ec2-user
@@ -145,7 +145,7 @@
 
 - name: Configure Keystone Server
   hosts: keystone
-  become: yes
+  become: true
   gather_facts: false
   tasks:
   
