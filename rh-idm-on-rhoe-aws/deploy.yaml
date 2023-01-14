@@ -6,21 +6,21 @@
   tasks:
 
   - name: Set preflight facts for current working directory
-    set_fact:
+    ansible.builtin.set_fact:
       cwd: "{{ playbook_dir.split('/') }}"
 
   - name: Set preflight facts for roles
-    set_fact:
+    ansible.builtin.set_fact:
       nu_roles_path: "{{ cwd[:-1] | join('/') }}/roles"
-  
+
   - name: Include shared vars
-    include_vars: vars.yaml
+    ansible.builtin.include_vars: vars.yaml
 
   - name: Scope RHOE AWS Environment
-    include_role:
-      name: "{{nu_roles_path }}/scope-rhoe-aws"
+    ansible.builtin.include_role:
+      name: "{{ nu_roles_path }}/scope-rhoe-aws"
 
-  #======================================================================== AWS INFRASTRUCTURE
+  # ======================================================================== AWS INFRASTRUCTURE
 
   - name: Create EC2 Key Pair from Public Key Input
     amazon.aws.ec2_key:
@@ -68,6 +68,7 @@
         owner: "{{ rhoe_email_owner }}"
         email: "{{ rhoe_email_owner }}"
         deployer: grain-tower
+    register: idm_sg
 
   - name: Find RHEL AMI
     amazon.aws.ec2_ami_info:
@@ -77,39 +78,69 @@
         name: "RHEL*8.4*x86_64*"
     register: rhel_ami
 
-  - name: Create EC2 Instance for RH IDM Server
-    amazon.aws.ec2:
+  - name: See if the EC2 instance exists because these new modules suck
+    amazon.aws.ec2_instance_info:
+      filters:
+        "tag:guid": "{{ rhoe_guid }}"
+        "tag:owner": "{{ rhoe_email_owner }}"
+        "tag:email": "{{ rhoe_email_owner }}"
+        "tag:Name": idm
+        "tag:base_domain": "{{ aws_guid_public_zone_name }}"
+        "tag:deployer": grain-tower
+        "tag:group": idm-sg
+        instance-state-name: ["running", "pending"]
       region: "{{ aws_region }}"
-      key_name: "{{ idm_keypair_name }}"
-      instance_type: "{{ idm_ec2_instance_type }}"
-      image: "{{ (rhel_ami.images | selectattr('name', 'defined') | sort(attribute='creation_date') | last).image_id }}"
-      wait: yes
-      vpc_subnet_id: "{{ aws_subnet_id }}"
-      assign_public_ip: yes
-      group: idm-sg
-      exact_count: 1
-      count_tag:
-        Name: idm
-      instance_tags:
+    register: ec2_instance_info
+
+  - name: Create EC2 Instance for RH IDM Server
+    when: ec2_instance_info.instances | length == 0
+    amazon.aws.ec2_instance:
+      network:
+        assign_public_ip: true
+      tags:
         guid: "{{ rhoe_guid }}"
         owner: "{{ rhoe_email_owner }}"
         email: "{{ rhoe_email_owner }}"
         Name: idm
         base_domain: "{{ aws_guid_public_zone_name }}"
         deployer: grain-tower
+        group: idm-sg
+      region: "{{ aws_region }}"
+      key_name: "{{ idm_keypair_name }}"
+      instance_type: "{{ idm_ec2_instance_type }}"
+      image_id: "{{ (rhel_ami.images | selectattr('name', 'defined') | sort(attribute='creation_date') | last).image_id }}"
+      wait: true
+      vpc_subnet_id: "{{ aws_subnet_id }}"
+      exact_count: 1
+      security_group: "{{ idm_sg.group_id }}"
     register: aws_ec2_instance
 
+  - name: Get the EC2 Instance and wait until it has a public ip attached
+    amazon.aws.ec2_instance_info:
+      filters:
+        "tag:guid": "{{ rhoe_guid }}"
+        "tag:owner": "{{ rhoe_email_owner }}"
+        "tag:email": "{{ rhoe_email_owner }}"
+        "tag:Name": idm
+        "tag:base_domain": "{{ aws_guid_public_zone_name }}"
+        "tag:deployer": grain-tower
+        "tag:group": idm-sg
+        instance-state-name: ["running", "pending"]
+      region: "{{ aws_region }}"
+    register: ec2_instance_info
+    until: ec2_instance_info.instances[0].public_ip_address is defined
+
   - name: Set fact for Route53 entries
-    set_fact:
+    ansible.builtin.set_fact:
       r53_records:
         - name: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}"
           type: A
           ttl: 300
-          value: "{{ aws_ec2_instance.tagged_instances[0].public_ip }}"
+          value: "{{ ec2_instance_info.instances[0].public_ip_address }}"
         - name: "{{ idm_hostname }}-ca.{{ aws_guid_public_zone_name }}"
           type: A
           ttl: 300
-          value: "{{ aws_ec2_instance.tagged_instances[0].public_ip }}"
+          value: "{{ ec2_instance_info.instances[0].public_ip_address }}"
         - name: "_kerberos.{{ aws_guid_public_zone_name }}"
           type: TXT
           ttl: 300
@@ -197,7 +228,7 @@
           weight: 100
           port: 123
           value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
-    
+
   - name: Create Route53 A Record Entries for IDM
     community.aws.route53:
       state: present
@@ -206,12 +237,12 @@
       type: "{{ record_item.type }}"
       ttl: "{{ record_item.ttl }}"
       value: "{{ record_item.value }}"
-      overwrite: yes
+      overwrite: true
     loop: "{{ r53_records }}"
     loop_control:
       loop_var: record_item
     when: (record_item.type == "A")
-    
+
   - name: Create Route53 TXT Record Entries for IDM
     community.aws.route53:
       state: present
@@ -220,12 +251,12 @@
       type: "{{ record_item.type }}"
       ttl: "{{ record_item.ttl }}"
       value: '"{{ record_item.value }}"'
-      overwrite: yes
+      overwrite: true
     loop: "{{ r53_records }}"
     loop_control:
       loop_var: record_item
     when: (record_item.type == "TXT")
-    
+
   - name: Create Route53 SRV Record Entries for IDM
     community.aws.route53:
       state: present
@@ -234,31 +265,33 @@
       type: "{{ record_item.type }}"
       ttl: "{{ record_item.ttl }}"
       value: "{{ record_item.priority }} {{ record_item.weight }} {{ record_item.port }} {{ record_item.value }}"
-      overwrite: yes
+      overwrite: true
     loop: "{{ r53_records }}"
     loop_control:
       loop_var: record_item
     when: (record_item.type == "SRV")
 
   - name: Add the new IDM Host to a new inventory
-    add_host:
-      hostname: '{{ aws_ec2_instance.tagged_instances[0].public_ip }}'
+    ansible.builtin.add_host:
+      hostname: '{{ ec2_instance_info.instances[0].public_ip_address }}'
       groups:
-      - idm
+        - idm
       ansible_user: ec2-user
       ansible_connection: ssh
       ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
       ansible_python_interpreter: "/usr/libexec/platform-python"
       aws_guid_public_zone_name: "{{ aws_guid_public_zone_name }}"
 
+  # ======================================================================== IDM Server Setup
+
 - name: Configure IDM Server
   hosts: idm
-  become: yes
+  become: true
   gather_facts: false
   tasks:
-  
+
     - name: Include shared vars
-      include_vars: vars.yaml
-      
+      ansible.builtin.include_vars: vars.yaml
+
     - name: Kick off configuration
-      include_tasks: configure.yaml
+      ansible.builtin.include_tasks: configure.yaml

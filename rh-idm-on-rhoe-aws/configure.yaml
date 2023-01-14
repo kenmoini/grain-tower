@@ -1,25 +1,26 @@
 ---
+
 - name: Wait for SSH to come up
-  wait_for_connection:
+  ansible.builtin.wait_for_connection:
     delay: 10
     timeout: 360
 
 - name: Update system packages
-  yum:
+  ansible.builtin.yum:
     name: "*"
     state: latest
-    update_cache: yes
+    update_cache: true
   register: update_task_result
 
 - name: Install base packages
-  become: yes
-  yum:
-    disable_gpg_check: yes
+  become: true
+  ansible.builtin.yum:
+    disable_gpg_check: true
     state: present
     name: ['nano', 'firewalld', 'python3-libselinux', '@idm:DL1']
 
 - name: Install IDM server packages
-  yum:
+  ansible.builtin.yum:
     name: "{{ idm_server_pkgs }}"
     state: present
   delay: 10
@@ -28,17 +29,17 @@
   until: result is succeeded
 
 - name: Disable SELinux
-  selinux:
+  ansible.posix.selinux:
     state: disabled
-      
+
 - name: Reboot immediately if there were new packages installed
-  shell: "sleep 5 && reboot"
+  ansible.builtin.shell: "sleep 5 && reboot"
   async: 1
   poll: 0
   when: update_task_result is changed
 
 - name: Wait for the reboot to complete if there were new packages installed
-  wait_for_connection:
+  ansible.builtin.wait_for_connection:
     connect_timeout: 20
     sleep: 5
     delay: 5
@@ -53,26 +54,26 @@
   ansible.builtin.setup:
 
 - name: Connect to new instance and set hostname
-  hostname:
+  ansible.builtin.hostname:
     name: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}"
 
 - name: Set /etc/hosts file
-  copy:
+  ansible.builtin.copy:
     dest: "/etc/hosts"
     content: |
       127.0.0.1 localhost localdomain
       {{ hostvars[inventory_hostname].ansible_eth0.ipv4.address }} {{ idm_hostname }}.{{ aws_guid_public_zone_name }} {{ aws_guid_public_zone_name }}
 
 - name: Start firewalld
-  service:
+  ansible.builtin.service:
     name: firewalld
     state: started
     enabled: true
 
 - name: Connect to RH IDM server and set firewall
   ansible.posix.firewalld:
-    permanent: yes
-    immediate: yes
+    permanent: true
+    immediate: true
     state: enabled
     service: "{{ item }}"
   with_items:
@@ -86,13 +87,13 @@
 
 - name: Connect to RH IDM server and set firewall for port 8080
   ansible.posix.firewalld:
-    permanent: yes
-    immediate: yes
+    permanent: true
+    immediate: true
     state: enabled
     port: 8080/tcp
 
 - name: Echo the IDM server installer
-  debug:
+  ansible.builtin.debug:
     msg: "{{ idm_server_install_base_command }} {{ idm_server_install_options | join(' ') }}"
 
 - name: Check to see if IDM is already configured
@@ -101,35 +102,35 @@
   register: pathToIPAConfig
 
 - name: Run the IDM server installer
+  ansible.builtin.command: "{{ idm_server_install_base_command }} {{ idm_server_install_options | join(' ') }}"
   args:
     creates: /etc/ipa/default.conf
-  command: "{{ idm_server_install_base_command }} {{ idm_server_install_options | join(' ') }}"
 
 - name: Do initial kinit admin auth
-  shell: "echo '{{ idm_server_admin_password }}' | kinit admin"
   when: not pathToIPAConfig.stat.exists
+  ansible.builtin.shell: "echo '{{ idm_server_admin_password }}' | kinit admin"
 
 - name: Create groups
-  shell: "ipa group-add {{ group_item }}"
   when: idm_provision_groups and not pathToIPAConfig.stat.exists
+  ansible.builtin.shell: "ipa group-add {{ group_item }}"
   loop: "{{ idm_provision_groups_groups }}"
   loop_control:
     loop_var: group_item
 
 - name: Create batch student users
-  shell: "echo '{{ idm_provision_users_password }}' | ipa user-add {{ idm_provision_users_prefix }}{{ item }}{{ idm_provision_users_suffix }} --first=Student --last=User{{ item }} --password --shell=/bin/bash"
-  with_sequence: start={{ idm_provision_users_start }} count={{ idm_provision_users_count }}
   when: idm_provision_users and not pathToIPAConfig.stat.exists
+  ansible.builtin.shell: "echo '{{ idm_provision_users_password }}' | ipa user-add {{ idm_provision_users_prefix }}{{ item }}{{ idm_provision_users_suffix }} --first=Student --last=User{{ item }} --password --shell=/bin/bash"
+  with_sequence: start={{ idm_provision_users_start }} count={{ idm_provision_users_count }}
 
 - name: Set expiration out for a decade so users dont have to reset passwords
-  shell: "ipa user-mod {{ idm_provision_users_prefix }}{{ item }}{{ idm_provision_users_suffix }} --setattr krbPasswordExpiration=20360420162000Z"
-  with_sequence: start={{ idm_provision_users_start }} count={{ idm_provision_users_count }}
   when: idm_provision_users and not pathToIPAConfig.stat.exists
+  ansible.builtin.shell: "ipa user-mod {{ idm_provision_users_prefix }}{{ item }}{{ idm_provision_users_suffix }} --setattr krbPasswordExpiration=20360420162000Z"
+  with_sequence: start={{ idm_provision_users_start }} count={{ idm_provision_users_count }}
 
 - name: Add users to group
-  shell: "ipa group-add-member {{ idm_provision_users_group }} --users={{ idm_provision_users_prefix }}{{ item }}{{ idm_provision_users_suffix }}"
-  with_sequence: start={{ idm_provision_users_start }} count={{ idm_provision_users_count }}
   when: idm_provision_users and not pathToIPAConfig.stat.exists
+  ansible.builtin.shell: "ipa group-add-member {{ idm_provision_users_group }} --users={{ idm_provision_users_prefix }}{{ item }}{{ idm_provision_users_suffix }}"
+  with_sequence: start={{ idm_provision_users_start }} count={{ idm_provision_users_count }}
 
 - name: Check to see if IDM is already configured
   ansible.builtin.stat:
@@ -137,18 +138,18 @@
   register: pathToIPABindDN
 
 - name: Copy Binding User template file over
+  when: not pathToIPAConfig.stat.exists
   template:
     src: templates/idm-binddn.update.j2
     dest: /etc/ipa/idm-binddn.update
-  when: not pathToIPAConfig.stat.exists
 
 - name: Create Binding user from template
-  shell: "ipa-ldap-updater /etc/ipa/idm-binddn.update"
   when: not pathToIPABindDN.stat.exists
+  ansible.builtin.shell: "ipa-ldap-updater /etc/ipa/idm-binddn.update"
 
 - name: Restart ipa services
-  service:
-    enabled: yes
+  when: not pathToIPAConfig.stat.exists
+  ansible.builtin.service:
+    enabled: true
     name: ipa
     state: restarted
-  when: not pathToIPAConfig.stat.exists
