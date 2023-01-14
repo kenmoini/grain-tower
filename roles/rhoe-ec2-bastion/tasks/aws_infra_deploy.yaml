@@ -62,7 +62,7 @@
       "tag:guid": "{{ rhoe_guid }}"
       "tag:owner": "{{ rhoe_email_owner }}"
       "tag:email": "{{ rhoe_email_owner }}"
-      "tag:Name": bastion
+      "tag:Name": "{{ bastion_hostname }}"
       "tag:base_domain": "{{ aws_guid_public_zone_name }}"
       "tag:deployer": grain-tower
       "tag:group": bastion-sg
@@ -104,7 +104,7 @@
       "tag:guid": "{{ rhoe_guid }}"
       "tag:owner": "{{ rhoe_email_owner }}"
       "tag:email": "{{ rhoe_email_owner }}"
-      "tag:Name": bastion
+      "tag:Name": "{{ bastion_hostname }}"
       "tag:base_domain": "{{ aws_guid_public_zone_name }}"
       "tag:deployer": grain-tower
       "tag:group": bastion-sg
@@ -112,6 +112,8 @@
     region: "{{ aws_region }}"
   register: ec2_instance_info
   until: ec2_instance_info.instances[0].public_ip_address is defined
+  retries: 30
+  delay: 10
 
 - name: Set fact for Route53 entries
   tags:

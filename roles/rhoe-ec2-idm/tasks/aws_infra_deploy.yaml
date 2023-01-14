@@ -123,6 +123,8 @@
     region: "{{ aws_region }}"
   register: ec2_instance_info
   until: ec2_instance_info.instances[0].public_ip_address is defined
+  retries: 30
+  delay: 10
 
 - name: Set fact for Route53 entries
   tags:
