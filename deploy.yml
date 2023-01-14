@@ -38,6 +38,13 @@
           vars:
             stage: aws_infra
 
+        - name: RHOE - EC2 - Gitlab | AWS Infrastructure
+          when: (deploy_gitlab is defined) and deploy_gitlab | bool
+          ansible.builtin.include_role:
+            name: "rhoe-ec2-gitlab"
+          vars:
+            stage: aws_infra
+
 # ============================================================
 # Per-Workload Configuration - IDM
 # ============================================================
@@ -69,5 +76,21 @@
     - name: RHOE - EC2 - Bastion | Configure
       ansible.builtin.include_role:
         name: "rhoe-ec2-bastion"
+      vars:
+        stage: configure
+
+# ============================================================
+# Per-Workload Configuration - Gitlab
+# ============================================================
+- name: RHOE - EC2 - Gitlab | Configure
+  hosts: gitlab
+  become: true
+  gather_facts: false
+  vars:
+    action: deploy # deploy or destroy
+  tasks:
+    - name: RHOE - EC2 - Gitlab | Configure
+      ansible.builtin.include_role:
+        name: "rhoe-ec2-gitlab"
       vars:
         stage: configure

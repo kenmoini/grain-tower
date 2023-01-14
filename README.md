@@ -10,7 +10,7 @@ With little more than a set of AWS Keys and Machine/SSH Credentials you can depl
 
 - A Bastion Host!
 - Red Hat Identity Management
-- [Legacy WIP] GitLab
+- GitLab
 - [Legacy WIP] Red Hat OpenShift Container Platform, via the Bastion Host
 - [Legacy WIP] Keystone
 

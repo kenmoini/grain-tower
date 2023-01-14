@@ -20,12 +20,17 @@
     - name: Destroy RHOE AWS Infrastructure for different workloads
       block:
 
-        - name: RHOE - EC2 - IDM | AWS Infrastructure
+        - name: RHOE - EC2 - IDM | Destroy AWS Infrastructure
           when: (deploy_rh_idm is defined) and deploy_rh_idm | bool
           ansible.builtin.include_role:
             name: "rhoe-ec2-idm"
 
-        - name: RHOE - EC2 - Bastion | AWS Infrastructure
+        - name: RHOE - EC2 - Bastion | Destroy AWS Infrastructure
           when: (deploy_bastion is defined) and deploy_bastion | bool
           ansible.builtin.include_role:
             name: "rhoe-ec2-bastion"
+
+        - name: RHOE - EC2 - GitLab | Destroy AWS Infrastructure
+          when: (deploy_gitlab is defined) and deploy_gitlab | bool
+          ansible.builtin.include_role:
+            name: "rhoe-ec2-gitlab"
