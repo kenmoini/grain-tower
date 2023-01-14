@@ -1,0 +1,142 @@
+---
+- name: Wait for SSH to come up
+  ansible.builtin.wait_for_connection:
+    delay: 10
+    timeout: 360
+
+- name: Update system packages
+  ansible.builtin.yum:
+    name: "*"
+    state: latest
+    update_cache: true
+  register: update_task_result
+
+- name: Install GitLab server packages
+  ansible.builtin.yum:
+    name: "{{ gitlab_server_pkgs }}"
+    state: present
+  delay: 10
+  register: result
+  retries: 3
+  until: result is succeeded
+
+- name: Disable SELinux
+  ansible.posix.selinux:
+    state: disabled
+      
+- name: Reboot immediately if there were new packages installed
+  ansible.builtin.shell: "sleep 5 && reboot"
+  async: 1
+  poll: 0
+  when: update_task_result is changed
+
+- name: Wait for the reboot to complete if there were new packages installed
+  ansible.builtin.wait_for_connection:
+    connect_timeout: 20
+    sleep: 5
+    delay: 5
+    timeout: 300
+  when: update_task_result is changed
+  delay: 10
+  register: wait_result
+  retries: 3
+  until: wait_result is succeeded
+
+- name: Collect facts
+  ansible.builtin.setup:
+
+- name: Connect to new instance and set hostname
+  ansible.builtin.hostname:
+    name: "{{ gitlab_hostname }}.{{ aws_guid_public_zone_name }}"
+
+- name: Set /etc/hosts file
+  ansible.builtin.copy:
+    dest: "/etc/hosts"
+    content: |
+      127.0.0.1 localhost localdomain
+      {{ hostvars[inventory_hostname].ansible_eth0.ipv4.address }} {{ gitlab_hostname }}.{{ aws_guid_public_zone_name }} {{ aws_guid_public_zone_name }}
+
+- name: Start firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Connect to GitLab server and set firewall
+  ansible.posix.firewalld:
+    permanent: true
+    immediate: true
+    state: enabled
+    service: "{{ item }}"
+  with_items:
+    - ssh
+    - https
+    - http
+
+- name: Connect to GitLab server and set firewall for port 8080
+  ansible.posix.firewalld:
+    permanent: true
+    immediate: true
+    state: enabled
+    port: "{{ port_item }}/tcp"
+  loop_control:
+    loop_var: port_item
+  loop:
+    - 5000
+    - 5001
+    - 5002
+    - 5003
+    - 5004
+    - 5005
+
+
+- name: Check if GitLab configuration file already exists.
+  ansible.builtin.stat: path=/etc/gitlab/gitlab.rb
+  register: gitlab_config_file
+
+- name: Check if GitLab is already installed.
+  ansible.builtin.stat: path=/usr/bin/gitlab-ctl
+  register: gitlab_file
+
+- name: Download GitLab repository installation script.
+  ansible.builtin.get_url:
+    url: "{{ gitlab_repository_installation_script_url }}"
+    dest: /tmp/gitlab_install_repository.sh
+    validate_certs: "{{ gitlab_download_validate_certs }}"
+  when: not gitlab_file.stat.exists
+
+- name: Install GitLab repository.
+  ansible.builtin.command: bash /tmp/gitlab_install_repository.sh
+  when: not gitlab_file.stat.exists
+
+- name: Define the Gitlab package name.
+  ansible.builtin.set_fact:
+    gitlab_package_name: "{{ gitlab_edition }}{{ gitlab_package_version_separator }}{{ gitlab_version }}"
+  when: gitlab_version != ''
+
+- name: Create GitLab Config directory
+  ansible.builtin.file:
+    path: /etc/gitlab
+    state: directory
+  when: not gitlab_config_file.stat.exists
+
+- name: Copy GitLab configuration file.
+  ansible.builtin.template:
+    src: templates/gitlab.rb.j2
+    dest: /etc/gitlab/gitlab.rb
+    owner: root
+    group: root
+    mode: 0600
+
+- name: Install GitLab
+  ansible.builtin.package:
+    name: "{{ gitlab_package_name | default(gitlab_edition) }}"
+    state: present
+  when: not gitlab_file.stat.exists
+  environment:
+    EXTERNAL_URL: "{{ 'https' if gitlab_enable_letsencrypt else 'http' }}://{{ gitlab_hostname }}.{{ aws_guid_public_zone_name }}"
+
+- name: restart gitlab
+  ansible.builtin.command: gitlab-ctl reconfigure
+  register: gitlab_restart
+  failed_when: not

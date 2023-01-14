@@ -1,6 +1,6 @@
 ---
 
-# ======================================================================== AWS INFRASTRUCTURE
+#======================================================================== AWS INFRASTRUCTURE
 
 - name: Create EC2 Key Pair from Public Key Input
   tags:
@@ -8,23 +8,41 @@
     - aws_ec2_key
   amazon.aws.ec2_key:
     region: "{{ aws_region }}"
-    name: "{{ bastion_keypair_name }}"
-    key_material: "{{ bastion_ec2_keypair }}"
+    name: "{{ gitlab_keypair_name }}"
+    key_material: "{{ gitlab_ec2_keypair }}"
 
-- name: Create Bastion Host Security Group
+- name: Create GitLab Security Group
   tags:
     - aws_infrastructure
     - aws_ec2_group
   amazon.aws.ec2_group:
-    name: bastion-sg
-    description: A Security Group for Bastion hosts
+    name: gitlab-sg
+    description: A Security Group for GitLab
     vpc_id: "{{ aws_vpc_id }}"
     region: "{{ aws_region }}"
     rules:
       - proto: tcp
         ports:
           - 22
+          - 80
+          - 443
+          - 5000
+          - 5001
+          - 5002
+          - 5003
+          - 5004
+          - 5005
+          - 8080
         cidr_ip: 0.0.0.0/0
+      - proto: udp
+        ports:
+          - 5000
+          - 5001
+          - 5002
+          - 5003
+          - 5004
+          - 5005
+        cidr_ip: 0.0.0.0/8
     rules_egress:
       - proto: tcp
         from_port: 0
@@ -39,8 +57,7 @@
       owner: "{{ rhoe_email_owner }}"
       email: "{{ rhoe_email_owner }}"
       deployer: grain-tower
-      deployment: bastion
-  register: bastion_sg
+  register: gitlab_sg
 
 - name: Find RHEL AMI
   tags:
@@ -62,15 +79,15 @@
       "tag:guid": "{{ rhoe_guid }}"
       "tag:owner": "{{ rhoe_email_owner }}"
       "tag:email": "{{ rhoe_email_owner }}"
-      "tag:Name": "{{ bastion_hostname }}"
+      "tag:Name": "{{ gitlab_hostname }}"
       "tag:base_domain": "{{ aws_guid_public_zone_name }}"
       "tag:deployer": grain-tower
-      "tag:group": bastion-sg
+      "tag:group": gitlab-sg
       instance-state-name: ["running", "pending"]
     region: "{{ aws_region }}"
   register: ec2_instance_info
 
-- name: Create EC2 Instance for Bastion Host Server
+- name: Create EC2 Instance for GitLab Server
   when: ec2_instance_info.instances | length == 0
   tags:
     - aws_infrastructure
@@ -79,21 +96,21 @@
     network:
       assign_public_ip: true
     tags:
-      Name: "{{ bastion_hostname }}"
-      group: bastion-sg
+      group: gitlab-sg
       guid: "{{ rhoe_guid }}"
       owner: "{{ rhoe_email_owner }}"
       email: "{{ rhoe_email_owner }}"
+      Name: "{{ gitlab_hostname }}"
       base_domain: "{{ aws_guid_public_zone_name }}"
       deployer: grain-tower
     region: "{{ aws_region }}"
-    key_name: "{{ bastion_keypair_name }}"
-    instance_type: "{{ bastion_ec2_instance_type }}"
+    key_name: "{{ gitlab_keypair_name }}"
+    instance_type: "{{ gitlab_ec2_instance_type }}"
     image_id: "{{ (rhel_ami.images | selectattr('name', 'defined') | sort(attribute='creation_date') | last).image_id }}"
     wait: true
     vpc_subnet_id: "{{ aws_subnet_id }}"
     exact_count: 1
-    security_group: "{{ bastion_sg.group_id }}"
+    security_group: "{{ gitlab_sg.group_id }}"
   register: aws_ec2_instance
 
 - name: Get the EC2 Instance and wait until it has a public ip attached
@@ -104,10 +121,10 @@
       "tag:guid": "{{ rhoe_guid }}"
       "tag:owner": "{{ rhoe_email_owner }}"
       "tag:email": "{{ rhoe_email_owner }}"
-      "tag:Name": "{{ bastion_hostname }}"
+      "tag:Name": "{{ gitlab_hostname }}"
       "tag:base_domain": "{{ aws_guid_public_zone_name }}"
       "tag:deployer": grain-tower
-      "tag:group": bastion-sg
+      "tag:group": gitlab-sg
       instance-state-name: ["running", "pending"]
     region: "{{ aws_region }}"
   register: ec2_instance_info
@@ -119,22 +136,22 @@
   tags:
     - aws_infrastructure
     - aws_route53
-  ansible.builtin.set_fact:
+  set_fact:
     r53_records:
-      - name: "{{ bastion_hostname }}.{{ aws_guid_public_zone_name }}"
+      - name: "{{ gitlab_hostname }}.{{ aws_guid_public_zone_name }}"
         type: A
         ttl: 300
         value: "{{ ec2_instance_info.instances[0].public_ip_address }}"
-      - name: "*.{{ bastion_hostname }}.{{ aws_guid_public_zone_name }}"
+      - name: "*.{{ gitlab_hostname }}.{{ aws_guid_public_zone_name }}"
         type: A
         ttl: 300
         value: "{{ ec2_instance_info.instances[0].public_ip_address }}"
-
-- name: Create Route53 A Record Entries for Bastion Host
+  
+- name: Create Route53 A Record Entries for GitLab
   tags:
     - aws_infrastructure
     - aws_route53
-  amazon.aws.route53:
+  community.aws.route53:
     state: present
     zone: "{{ aws_guid_public_zone_name }}"
     record: "{{ record_item.name }}"
@@ -147,13 +164,13 @@
     loop_var: record_item
   when: (record_item.type == "A")
 
-- name: Add the new Bastion Host to a new inventory
+- name: Add the new GitLab Host to a new inventory
   tags:
     - always
-  ansible.builtin.add_host:
+  add_host:
     hostname: '{{ ec2_instance_info.instances[0].public_ip_address }}'
     groups:
-      - bastion
+    - gitlab
     ansible_user: ec2-user
     ansible_connection: ssh
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
