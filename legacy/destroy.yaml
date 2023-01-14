@@ -1,0 +1,24 @@
+---
+- name: Deploy Bastion Host on RHOE AWS
+  when: (deploy_bastion is defined) and deploy_bastion|bool
+  import_playbook: bastion-on-rhoe-aws/destroy.yaml
+
+- name: Deploy Red Hat Identity Management on RHOE AWS
+  when: (deploy_rh_idm is defined) and deploy_rh_idm|bool
+  import_playbook: rh-idm-on-rhoe-aws/destroy.yaml
+
+- name: Deploy Keystone on RHOE AWS
+  when: (deploy_keystone is defined) and deploy_keystone|bool
+  import_playbook: keystone-on-rhoe-aws/destroy.yaml
+
+- name: Deploy GitLab on RHOE AWS
+  when: (deploy_gitlab is defined) and deploy_gitlab|bool
+  import_playbook: gitlab-on-rhoe-aws/destroy.yaml
+
+- name: Deploy OpenShift 4 on RHOE AWS
+  when: (deploy_ocp4 is defined) and deploy_ocp4|bool
+  import_playbook: ocp4-on-rhoe-aws/destroy.yaml
+
+- name: Deploy OpenShift 4 Workload - Machine Learning
+  when: (deploy_ocp4_workload_machinelearning_workshop is defined) and deploy_ocp4_workload_machinelearning_workshop|bool
+  import_playbook: ocp4-workshop-machinelearning/destroy.yaml

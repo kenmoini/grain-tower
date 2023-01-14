@@ -1,0 +1,179 @@
+---
+
+- name: Query EC2 Instance for RH IDM Server
+  amazon.aws.ec2_instance_info:
+    region: "{{ aws_region }}"
+    filters:
+      "tag:guid": "{{ rhoe_guid }}"
+      "tag:owner": "{{ rhoe_email_owner }}"
+      "tag:email": "{{ rhoe_email_owner }}"
+      "tag:Name": idm
+      "tag:base_domain": "{{ aws_guid_public_zone_name }}"
+      "tag:deployer": grain-tower
+      instance-state-name: ["running", "stopped"]
+  register: aws_ec2_instance
+
+- name: Set fact for Route53 entries
+  when: aws_ec2_instance.instances | length > 0
+  ansible.builtin.set_fact:
+    r53_records:
+      - name: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}"
+        type: A
+        ttl: 300
+        value: "{{ aws_ec2_instance.instances[0].public_ip_address }}"
+      - name: "{{ idm_hostname }}-ca.{{ aws_guid_public_zone_name }}"
+        type: A
+        ttl: 300
+        value: "{{ aws_ec2_instance.instances[0].public_ip_address }}"
+      - name: "_kerberos.{{ aws_guid_public_zone_name }}"
+        type: TXT
+        ttl: 300
+        value: "{{ aws_guid_public_zone_name }}."
+
+      - name: "_kerberos._tcp.{{ aws_guid_public_zone_name }}"
+        type: SRV
+        ttl: 6400
+        priority: 0
+        weight: 100
+        port: 88
+        value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+      - name: "_kerberos._udp.{{ aws_guid_public_zone_name }}"
+        type: SRV
+        ttl: 6400
+        priority: 0
+        weight: 100
+        port: 88
+        value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+
+      - name: "_kerberos-master._tcp.{{ aws_guid_public_zone_name }}"
+        type: SRV
+        ttl: 6400
+        priority: 0
+        weight: 100
+        port: 88
+        value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+      - name: "_kerberos-master._udp.{{ aws_guid_public_zone_name }}"
+        type: SRV
+        ttl: 6400
+        priority: 0
+        weight: 100
+        port: 88
+        value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+
+      - name: "_kpasswd._tcp.{{ aws_guid_public_zone_name }}"
+        type: SRV
+        ttl: 6400
+        priority: 0
+        weight: 100
+        port: 464
+        value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+      - name: "_kpasswd._udp.{{ aws_guid_public_zone_name }}"
+        type: SRV
+        ttl: 6400
+        priority: 0
+        weight: 100
+        port: 464
+        value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+
+      - name: "_ldap._tcp.{{ aws_guid_public_zone_name }}"
+        type: SRV
+        ttl: 6400
+        priority: 0
+        weight: 100
+        port: 389
+        value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+      - name: "_ldap._udp.{{ aws_guid_public_zone_name }}"
+        type: SRV
+        ttl: 6400
+        priority: 0
+        weight: 100
+        port: 389
+        value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+
+      - name: "_ldaps._tcp.{{ aws_guid_public_zone_name }}"
+        type: SRV
+        ttl: 6400
+        priority: 0
+        weight: 100
+        port: 636
+        value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+      - name: "_ldaps._udp.{{ aws_guid_public_zone_name }}"
+        type: SRV
+        ttl: 6400
+        priority: 0
+        weight: 100
+        port: 636
+        value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+
+      - name: "_ntp._tcp.{{ aws_guid_public_zone_name }}"
+        type: SRV
+        ttl: 6400
+        priority: 0
+        weight: 100
+        port: 123
+        value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+
+# ======================================================================== AWS INFRASTRUCTURE
+
+- name: Delete Route53 A Record Entries for IDM
+  community.aws.route53:
+    state: absent
+    zone: "{{ aws_guid_public_zone_name }}"
+    record: "{{ record_item.name }}"
+    type: "{{ record_item.type }}"
+    ttl: "{{ record_item.ttl }}"
+    value: "{{ record_item.value }}"
+    overwrite: true
+  loop: "{{ r53_records }}"
+  loop_control:
+    loop_var: record_item
+  when: (record_item.type == "A") and (aws_ec2_instance.instances | length > 0)
+
+- name: Delete Route53 TXT Record Entries for IDM
+  community.aws.route53:
+    state: absent
+    zone: "{{ aws_guid_public_zone_name }}"
+    record: "{{ record_item.name }}"
+    type: "{{ record_item.type }}"
+    ttl: "{{ record_item.ttl }}"
+    value: '"{{ record_item.value }}"'
+    overwrite: true
+  loop: "{{ r53_records }}"
+  loop_control:
+    loop_var: record_item
+  when: (record_item.type == "TXT") and (aws_ec2_instance.instances | length > 0)
+
+- name: Delete Route53 SRV Record Entries for IDM
+  community.aws.route53:
+    state: absent
+    zone: "{{ aws_guid_public_zone_name }}"
+    record: "{{ record_item.name }}"
+    type: "{{ record_item.type }}"
+    ttl: "{{ record_item.ttl }}"
+    value: "{{ record_item.priority }} {{ record_item.weight }} {{ record_item.port }} {{ record_item.value }}"
+    overwrite: true
+  loop: "{{ r53_records }}"
+  loop_control:
+    loop_var: record_item
+  when: (record_item.type == "SRV") and (aws_ec2_instance.instances | length > 0)
+
+- name: Delete EC2 instance
+  when: aws_ec2_instance.instances | length > 0
+  amazon.aws.ec2_instance:
+    region: "{{ aws_region }}"
+    state: absent
+    wait: true
+    instance_ids: '{{ aws_ec2_instance.instances[0].instance_id }}'
+
+- name: Delete IDM Security Group
+  amazon.aws.ec2_group:
+    name: idm-sg
+    state: absent
+    vpc_id: "{{ aws_vpc_id }}"
+    region: "{{ aws_region }}"
+
+- name: Delete EC2 Key Pair
+  amazon.aws.ec2_key:
+    region: "{{ aws_region }}"
+    name: "{{ idm_keypair_name }}"
+    state: absent

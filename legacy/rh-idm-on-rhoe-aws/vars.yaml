@@ -1,0 +1,96 @@
+---
+# Basic Needed vars
+
+aws_region: us-east-2
+idm_hostname: idm
+idm_keypair_name: idm_keypair
+idm_ec2_instance_type: m5.xlarge
+#idm_ec2_instance_type: t2.large
+idm_ec2_keypair: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC/UQ6SVJ0Jk/fDfLpecIIIfTe3+Ry+oaF8AFKAZwXJ8xMMmrPcPX1JTb4k/keVPT5liqYLb6pxO9yKUb1fLIKXQj+6OaDFaq7J8O3ad5AjpwMH97pynPtjUnltDIPbMTLOUHMZCrvF/PIn0iQ2lfl48lADD/S/tOPh34TI8fv+miuCO7Gdsk9DqT9SxIRG4oKj7ZKp/PKyWuPheRhJ0KiSeFIHR3dXSJnLiL+JkdBotB4IK78Pygwo6P6Wyl2P4gobkKhy/YuTiSImbaN0G8YMJrUu1EzYQ5QlmNqPKVuFH8te41vxmTX47N5h8vfO9c00YFC5H9mtsPMGXYRTiRkB
+
+# Default vars, not needed to be modified
+idm_provision_users: true
+idm_provision_groups: true
+idm_provision_groups_groups:
+  - workshopusers
+  - adminusers
+idm_provision_users_group: workshopusers
+idm_provision_users_prefix: user
+idm_provision_users_suffix: ''
+idm_provision_users_start: 0
+idm_provision_users_count: 10
+idm_provision_users_password: r3dh4t1!
+
+idm_server_admin_password: s3cur3P455W0rd
+idm_server_ds_password: s3cur3P455W0rd
+
+idm_server_domain: "{{ aws_guid_public_zone_name }}"
+idm_server_fqdn: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}"
+idm_server_ip: "{{ ansible_ssh_host }}"
+idm_server_realm: "{{ aws_guid_public_zone_name | upper }}"
+idm_server_manage_host: false
+idm_server_install_base_command: ipa-server-install --unattended
+idm_server_pkgs:
+  - bind
+  - bind-dyndb-ldap
+  - bind-utils
+  - ipa-server
+  #- python2-devel
+  - openldap-devel
+  - platform-python-devel
+  - ipa-server-common
+  - ipa-server-dns
+  - ipa-server-trust-ad
+  - krb5-devel
+  - python36-devel
+  - python3-ipapython
+  - python3-six
+  - python3-dns
+  - python3-cffi
+  - python3-idna
+  - python3-netaddr
+  - python3-gssapi
+  - python3-decorator
+  - python3-pyasn1
+  - python3-jwcrypto
+  - python3-pyOpenSSL
+  - python3-cryptography
+  - python3-pytest
+  - python3-ldap
+  - python3-argcomplete
+  - python3-argh
+  - "@Development tools"
+idm_server_pip_pkgs:
+  - custodia
+  - ipapython==4.8.7
+  - jwcrypto
+  - pyasn1-modules
+  - pyopenssl
+  - python-ldap
+  - paramiko
+  - cryptography
+  - pytest
+  - argparse-manpage
+idm_server_install_options:
+  - "--realm={{ idm_server_realm }}"
+  - "--domain={{ idm_server_domain }}"
+  - "--ds-password={{ idm_server_ds_password }}"
+  - "--admin-password={{ idm_server_admin_password }}"
+  - "--mkhomedir"
+  - "--hostname={{ idm_server_fqdn | default(ansible_fqdn) }}"
+#  - "--no-ntp"
+#  - "--ip-address={{ idm_server_ip }}"
+#  - "--no-host-dns"
+#  - "--idstart=5000"
+#  - "--ssh-trust-dns"
+#  - "--no-dns"
+#  - "--setup-dns"
+#  - "--forwarder=8.8.8.8"
+#  - "--allow-zone-overlap"
+#  - "--ip-address={{ private_ip }}"
+#  - "--ip-address={{ ansible_ssh_host }}"
+#  - "--auto-forwarders"
+idm_base_dn: "DC={{ idm_server_domain.split('.') | join(',DC=') }}"
+
+
+enable_lets_encrypt: true

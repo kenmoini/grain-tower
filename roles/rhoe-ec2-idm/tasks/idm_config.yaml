@@ -1,0 +1,31 @@
+---
+- name: Kick off configuration
+  ansible.builtin.include_tasks:
+    file: configure.yaml
+    apply:
+      tags:
+        - configure
+  tags:
+    - configure
+
+- name: Include the Let's Encrypt tasks
+  when: enable_lets_encrypt
+  ansible.builtin.include_tasks:
+    file: letsencrypt.yaml
+    apply:
+      tags:
+        - letsencrypt
+  tags:
+    - letsencrypt
+
+- name: Output IDM Info
+  ansible.builtin.debug:
+    msg:
+      - "IDM Console: https://{{ idm_hostname }}.{{ aws_guid_public_zone_name }}"
+      - "IDM Admin User: admin"
+      - "IDM Admin Password: {{ idm_server_admin_password }}"
+      - "Provisioned Groups: {{ idm_provision_groups | string }}"
+      - "Provisioned Users: {{ idm_provision_users | string }}"
+      - "Groups: {{ idm_provision_groups_groups | join(', ') }}"
+      - "Users: {{ idm_provision_users_prefix + 'XX' + idm_provision_users_suffix }}, #{{ idm_provision_users_start }} - {{ idm_provision_users_count }}"
+      - "Users Password: {{ idm_provision_users_password }}"
