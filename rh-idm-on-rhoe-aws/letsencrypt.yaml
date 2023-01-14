@@ -1,0 +1,167 @@
+---
+- name: Download all the Let's Encrypt Root CA certificates to the traditional Linux CA trust store
+  ansible.builtin.get_url:
+    url: "https://letsencrypt.org/certs/{{ cert_item }}"
+    dest: /etc/pki/ca-trust/source/anchors/{{ cert_item }}
+    mode: 0644
+  loop:
+    - isrgrootx1.pem
+    - isrg-root-x2.pem
+    - lets-encrypt-r3.pem
+    - lets-encrypt-e1.pem
+    - lets-encrypt-r4.pem
+    - lets-encrypt-e2.pem
+  loop_control:
+    loop_var: cert_item
+  register: get_certs
+
+- name: Update the traditional Linux CA trust store
+  when: get_certs is changed
+  ansible.builtin.command: update-ca-trust
+
+- name: Install them into IPA as well
+  ansible.builtin.shell: ipa-cacert-manage install /etc/pki/ca-trust/source/anchors/{{ cert_item }}; touch /opt/.ipa-cacert-manage-install-{{ cert_item }}
+  args:
+    creates: /opt/.ipa-cacert-manage-install-{{ cert_item }}
+  loop:
+    - isrgrootx1.pem
+    - isrg-root-x2.pem
+    - lets-encrypt-r3.pem
+    - lets-encrypt-e1.pem
+    - lets-encrypt-r4.pem
+    - lets-encrypt-e2.pem
+  loop_control:
+    loop_var: cert_item
+  register: ipa_cacert_manage_install
+
+- name: Perform an ipa-certupdate
+  when: ipa_cacert_manage_install is changed
+  ansible.builtin.command: ipa-certupdate
+
+- name: Make sure the augeas-libs is installed
+  ansible.builtin.yum:
+    name: augeas-libs
+    state: present
+
+- name: Make sure the certbot pip module is installed
+  ansible.builtin.pip:
+    name: certbot
+    state: present
+
+- name: Set fact for generation as a false default
+  ansible.builtin.set_fact:
+    generate_cert: false
+
+- name: Make the directory for the certificate
+  ansible.builtin.file:
+    path: /etc/letsencrypt/live/{{ idm_server_fqdn }}
+    state: directory
+    mode: 0755
+
+- name: Check for the certificate file
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ idm_server_fqdn }}/0000_cert.pem
+  register: cert_file
+
+- name: Read in the certificate if it exists
+  when: cert_file.stat.exists
+  community.crypto.x509_certificate_info:
+    path: /etc/letsencrypt/live/{{ idm_server_fqdn }}/0000_cert.pem
+    valid_at:
+      month: "+30d"
+  register: cert_contents
+
+- name: Set fact for generation if it will expire in the next 30 days
+  when: cert_file.stat.exists and cert_contents.valid_at.month == False
+  ansible.builtin.set_fact:
+    generate_cert: true
+
+- name: Delete all the certificate files if it has expired
+  when: cert_file.stat.exists and cert_contents.valid_at.month == False
+  ansible.builtin.file:
+    path: /etc/letsencrypt/live/{{ idm_server_fqdn }}/{{ cert_item }}
+    state: absent
+  loop:
+    - 0000_cert.pem
+    - 0000_chain.pem
+    - 0001_chain.pem
+  loop_control:
+    loop_var: cert_item
+
+- name: Set fact for generation if the certificate doesn't exist
+  when: cert_file.stat.exists == False
+  ansible.builtin.set_fact:
+    generate_cert: true
+
+- name: Create a certificate if needed
+  when: generate_cert
+  block:
+    - name: Template the CSR config
+      ansible.builtin.template:
+        src: ipa-csr.cnf.j2
+        dest: /opt/ipa-csr.cnf
+
+    - name: Check to see if the key has a passout file
+      ansible.builtin.stat:
+        path: "/var/lib/ipa/passwds/{{ idm_server_fqdn }}-443-RSA"
+      register: key_passout
+
+    - name: Create the command facts
+      ansible.builtin.set_fact:
+        generate_csr_cmd: openssl req -new -sha256 -config /opt/ipa-csr.cnf -key /var/lib/ipa/private/httpd.key -out /opt/ipa.csr
+        #certbot_cmd: "certbot certonly --standalone --agree-tos --email {{ rhoe_email_owner }} -d {{ idm_server_fqdn }} -d {{ idm_hostname }}-ca.{{ aws_guid_public_zone_name }}"
+        certbot_cmd: "certbot certonly --standalone --agree-tos --email \"{{ rhoe_email_owner }}\" --csr /opt/ipa.csr --non-interactive"
+
+    - name: Add the passout to the command fact
+      when: key_passout.stat.exists
+      ansible.builtin.set_fact:
+        generate_csr_cmd: "{{ generate_csr_cmd }} -passin file:/var/lib/ipa/passwds/{{ idm_server_fqdn }}-443-RSA"
+
+    - name: Echo out the generate csr command
+      ansible.builtin.debug:
+        msg: "{{ generate_csr_cmd }}"
+
+    - name: Generate a new CSR
+      ansible.builtin.shell: "{{ generate_csr_cmd }}"
+      register: generate_csr_result
+
+    - name: Shutdown httpd
+      ansible.builtin.service:
+        name: httpd
+        state: stopped
+
+    - name: echo out the certbot command
+      ansible.builtin.debug:
+        msg: "{{ certbot_cmd }}"
+
+    - name: Run certbot
+      ansible.builtin.command: "{{ certbot_cmd }}"
+      args:
+        chdir: "/etc/letsencrypt/live/{{ idm_server_fqdn }}"
+      register: certbot_result
+      environment:
+        PATH: "/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin"
+
+    - name: Copy over the certificate
+      ansible.builtin.copy:
+        src: /opt/0000_cert.pem
+        dest: /var/lib/ipa/certs/httpd.crt
+        mode: 0644
+        user: root
+        group: root
+        backup: true
+        remote_src: true
+
+    - name: Restore the context on the certificate
+      ansible.builtin.shell: restorecon -v /var/lib/ipa/certs/httpd.crt
+
+    - name: Start httpd
+      ansible.builtin.service:
+        name: httpd
+        state: started
+
+  rescue:
+    - name: Start httpd
+      ansible.builtin.service:
+        name: httpd
+        state: started

@@ -22,265 +22,300 @@
 
   # ======================================================================== AWS INFRASTRUCTURE
 
-  - name: Create EC2 Key Pair from Public Key Input
-    amazon.aws.ec2_key:
-      region: "{{ aws_region }}"
-      name: "{{ idm_keypair_name }}"
-      key_material: "{{ idm_ec2_keypair }}"
+  - name: Create the AWS Infrastructure needed
+    block:
 
-  - name: Create IDM Security Group
-    amazon.aws.ec2_group:
-      name: idm-sg
-      description: A Security Group for Red Hat IDM
-      vpc_id: "{{ aws_vpc_id }}"
-      region: "{{ aws_region }}"
-      rules:
-        - proto: tcp
-          ports:
-            - 22
-            - 53
-            - 80
-            - 88
-            - 389
-            - 443
-            - 464
-            - 636
-            - 8080
-          cidr_ip: 0.0.0.0/0
-        - proto: udp
-          ports:
-            - 53
-            - 88
-            - 123
-            - 464
-          cidr_ip: 0.0.0.0/8
-      rules_egress:
-        - proto: tcp
-          from_port: 0
-          to_port: 65535
-          cidr_ip: 0.0.0.0/0
-        - proto: udp
-          from_port: 0
-          to_port: 65535
-          cidr_ip: 0.0.0.0/0
-      tags:
-        guid: "{{ rhoe_guid }}"
-        owner: "{{ rhoe_email_owner }}"
-        email: "{{ rhoe_email_owner }}"
-        deployer: grain-tower
-    register: idm_sg
+      - name: Create EC2 Key Pair from Public Key Input
+        tags:
+          - aws_infrastructure
+          - aws_ec2_key
+        amazon.aws.ec2_key:
+          region: "{{ aws_region }}"
+          name: "{{ idm_keypair_name }}"
+          key_material: "{{ idm_ec2_keypair }}"
 
-  - name: Find RHEL AMI
-    amazon.aws.ec2_ami_info:
-      region: "{{ aws_region }}"
-      owners: 309956199498
-      filters:
-        name: "RHEL*8.4*x86_64*"
-    register: rhel_ami
+      - name: Create IDM Security Group
+        tags:
+          - aws_infrastructure
+          - aws_ec2_group
+        amazon.aws.ec2_group:
+          name: idm-sg
+          description: A Security Group for Red Hat IDM
+          vpc_id: "{{ aws_vpc_id }}"
+          region: "{{ aws_region }}"
+          rules:
+            - proto: tcp
+              ports:
+                - 22
+                - 53
+                - 80
+                - 88
+                - 389
+                - 443
+                - 464
+                - 636
+                - 8080
+              cidr_ip: 0.0.0.0/0
+            - proto: udp
+              ports:
+                - 53
+                - 88
+                - 123
+                - 464
+              cidr_ip: 0.0.0.0/8
+          rules_egress:
+            - proto: tcp
+              from_port: 0
+              to_port: 65535
+              cidr_ip: 0.0.0.0/0
+            - proto: udp
+              from_port: 0
+              to_port: 65535
+              cidr_ip: 0.0.0.0/0
+          tags:
+            guid: "{{ rhoe_guid }}"
+            owner: "{{ rhoe_email_owner }}"
+            email: "{{ rhoe_email_owner }}"
+            deployer: grain-tower
+        register: idm_sg
 
-  - name: See if the EC2 instance exists because these new modules suck
-    amazon.aws.ec2_instance_info:
-      filters:
-        "tag:guid": "{{ rhoe_guid }}"
-        "tag:owner": "{{ rhoe_email_owner }}"
-        "tag:email": "{{ rhoe_email_owner }}"
-        "tag:Name": idm
-        "tag:base_domain": "{{ aws_guid_public_zone_name }}"
-        "tag:deployer": grain-tower
-        "tag:group": idm-sg
-        instance-state-name: ["running", "pending"]
-      region: "{{ aws_region }}"
-    register: ec2_instance_info
+      - name: Find RHEL AMI
+        tags:
+          - aws_infrastructure
+          - aws_ec2_ami_info
+        amazon.aws.ec2_ami_info:
+          region: "{{ aws_region }}"
+          owners: 309956199498
+          filters:
+            name: "RHEL*8.4*x86_64*"
+        register: rhel_ami
 
-  - name: Create EC2 Instance for RH IDM Server
-    when: ec2_instance_info.instances | length == 0
-    amazon.aws.ec2_instance:
-      network:
-        assign_public_ip: true
-      tags:
-        guid: "{{ rhoe_guid }}"
-        owner: "{{ rhoe_email_owner }}"
-        email: "{{ rhoe_email_owner }}"
-        Name: idm
-        base_domain: "{{ aws_guid_public_zone_name }}"
-        deployer: grain-tower
-        group: idm-sg
-      region: "{{ aws_region }}"
-      key_name: "{{ idm_keypair_name }}"
-      instance_type: "{{ idm_ec2_instance_type }}"
-      image_id: "{{ (rhel_ami.images | selectattr('name', 'defined') | sort(attribute='creation_date') | last).image_id }}"
-      wait: true
-      vpc_subnet_id: "{{ aws_subnet_id }}"
-      exact_count: 1
-      security_group: "{{ idm_sg.group_id }}"
-    register: aws_ec2_instance
+      - name: See if the EC2 instance exists because these new modules suck
+        tags:
+          - aws_infrastructure
+          - aws_ec2_instance_info
+        amazon.aws.ec2_instance_info:
+          filters:
+            "tag:guid": "{{ rhoe_guid }}"
+            "tag:owner": "{{ rhoe_email_owner }}"
+            "tag:email": "{{ rhoe_email_owner }}"
+            "tag:Name": idm
+            "tag:base_domain": "{{ aws_guid_public_zone_name }}"
+            "tag:deployer": grain-tower
+            "tag:group": idm-sg
+            instance-state-name: ["running", "pending"]
+          region: "{{ aws_region }}"
+        register: ec2_instance_info
 
-  - name: Get the EC2 Instance and wait until it has a public ip attached
-    amazon.aws.ec2_instance_info:
-      filters:
-        "tag:guid": "{{ rhoe_guid }}"
-        "tag:owner": "{{ rhoe_email_owner }}"
-        "tag:email": "{{ rhoe_email_owner }}"
-        "tag:Name": idm
-        "tag:base_domain": "{{ aws_guid_public_zone_name }}"
-        "tag:deployer": grain-tower
-        "tag:group": idm-sg
-        instance-state-name: ["running", "pending"]
-      region: "{{ aws_region }}"
-    register: ec2_instance_info
-    until: ec2_instance_info.instances[0].public_ip_address is defined
+      - name: Create EC2 Instance for RH IDM Server
+        when: ec2_instance_info.instances | length == 0
+        tags:
+          - aws_infrastructure
+          - aws_ec2_instance
+        amazon.aws.ec2_instance:
+          network:
+            assign_public_ip: true
+          tags:
+            guid: "{{ rhoe_guid }}"
+            owner: "{{ rhoe_email_owner }}"
+            email: "{{ rhoe_email_owner }}"
+            Name: idm
+            base_domain: "{{ aws_guid_public_zone_name }}"
+            deployer: grain-tower
+            group: idm-sg
+          region: "{{ aws_region }}"
+          key_name: "{{ idm_keypair_name }}"
+          instance_type: "{{ idm_ec2_instance_type }}"
+          image_id: "{{ (rhel_ami.images | selectattr('name', 'defined') | sort(attribute='creation_date') | last).image_id }}"
+          wait: true
+          vpc_subnet_id: "{{ aws_subnet_id }}"
+          exact_count: 1
+          security_group: "{{ idm_sg.group_id }}"
+        register: aws_ec2_instance
 
-  - name: Set fact for Route53 entries
-    ansible.builtin.set_fact:
-      r53_records:
-        - name: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}"
-          type: A
-          ttl: 300
-          value: "{{ ec2_instance_info.instances[0].public_ip_address }}"
-        - name: "{{ idm_hostname }}-ca.{{ aws_guid_public_zone_name }}"
-          type: A
-          ttl: 300
-          value: "{{ ec2_instance_info.instances[0].public_ip_address }}"
-        - name: "_kerberos.{{ aws_guid_public_zone_name }}"
-          type: TXT
-          ttl: 300
-          value: "{{ aws_guid_public_zone_name }}."
+      - name: Get the EC2 Instance and wait until it has a public ip attached
+        tags:
+          - always
+        amazon.aws.ec2_instance_info:
+          filters:
+            "tag:guid": "{{ rhoe_guid }}"
+            "tag:owner": "{{ rhoe_email_owner }}"
+            "tag:email": "{{ rhoe_email_owner }}"
+            "tag:Name": idm
+            "tag:base_domain": "{{ aws_guid_public_zone_name }}"
+            "tag:deployer": grain-tower
+            "tag:group": idm-sg
+            instance-state-name: ["running", "pending"]
+          region: "{{ aws_region }}"
+        register: ec2_instance_info
+        until: ec2_instance_info.instances[0].public_ip_address is defined
 
-        - name: "_kerberos._tcp.{{ aws_guid_public_zone_name }}"
-          type: SRV
-          ttl: 6400
-          priority: 0
-          weight: 100
-          port: 88
-          value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
-        - name: "_kerberos._udp.{{ aws_guid_public_zone_name }}"
-          type: SRV
-          ttl: 6400
-          priority: 0
-          weight: 100
-          port: 88
-          value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+      - name: Set fact for Route53 entries
+        tags:
+          - aws_infrastructure
+          - aws_route53
+        ansible.builtin.set_fact:
+          r53_records:
+            - name: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}"
+              type: A
+              ttl: 300
+              value: "{{ ec2_instance_info.instances[0].public_ip_address }}"
+            - name: "{{ idm_hostname }}-ca.{{ aws_guid_public_zone_name }}"
+              type: A
+              ttl: 300
+              value: "{{ ec2_instance_info.instances[0].public_ip_address }}"
+            - name: "_kerberos.{{ aws_guid_public_zone_name }}"
+              type: TXT
+              ttl: 300
+              value: "{{ aws_guid_public_zone_name }}."
 
-        - name: "_kerberos-master._tcp.{{ aws_guid_public_zone_name }}"
-          type: SRV
-          ttl: 6400
-          priority: 0
-          weight: 100
-          port: 88
-          value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
-        - name: "_kerberos-master._udp.{{ aws_guid_public_zone_name }}"
-          type: SRV
-          ttl: 6400
-          priority: 0
-          weight: 100
-          port: 88
-          value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+            - name: "_kerberos._tcp.{{ aws_guid_public_zone_name }}"
+              type: SRV
+              ttl: 6400
+              priority: 0
+              weight: 100
+              port: 88
+              value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+            - name: "_kerberos._udp.{{ aws_guid_public_zone_name }}"
+              type: SRV
+              ttl: 6400
+              priority: 0
+              weight: 100
+              port: 88
+              value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
 
-        - name: "_kpasswd._tcp.{{ aws_guid_public_zone_name }}"
-          type: SRV
-          ttl: 6400
-          priority: 0
-          weight: 100
-          port: 464
-          value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
-        - name: "_kpasswd._udp.{{ aws_guid_public_zone_name }}"
-          type: SRV
-          ttl: 6400
-          priority: 0
-          weight: 100
-          port: 464
-          value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+            - name: "_kerberos-master._tcp.{{ aws_guid_public_zone_name }}"
+              type: SRV
+              ttl: 6400
+              priority: 0
+              weight: 100
+              port: 88
+              value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+            - name: "_kerberos-master._udp.{{ aws_guid_public_zone_name }}"
+              type: SRV
+              ttl: 6400
+              priority: 0
+              weight: 100
+              port: 88
+              value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
 
-        - name: "_ldap._tcp.{{ aws_guid_public_zone_name }}"
-          type: SRV
-          ttl: 6400
-          priority: 0
-          weight: 100
-          port: 389
-          value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
-        - name: "_ldap._udp.{{ aws_guid_public_zone_name }}"
-          type: SRV
-          ttl: 6400
-          priority: 0
-          weight: 100
-          port: 389
-          value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+            - name: "_kpasswd._tcp.{{ aws_guid_public_zone_name }}"
+              type: SRV
+              ttl: 6400
+              priority: 0
+              weight: 100
+              port: 464
+              value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+            - name: "_kpasswd._udp.{{ aws_guid_public_zone_name }}"
+              type: SRV
+              ttl: 6400
+              priority: 0
+              weight: 100
+              port: 464
+              value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
 
-        - name: "_ldaps._tcp.{{ aws_guid_public_zone_name }}"
-          type: SRV
-          ttl: 6400
-          priority: 0
-          weight: 100
-          port: 636
-          value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
-        - name: "_ldaps._udp.{{ aws_guid_public_zone_name }}"
-          type: SRV
-          ttl: 6400
-          priority: 0
-          weight: 100
-          port: 636
-          value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+            - name: "_ldap._tcp.{{ aws_guid_public_zone_name }}"
+              type: SRV
+              ttl: 6400
+              priority: 0
+              weight: 100
+              port: 389
+              value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+            - name: "_ldap._udp.{{ aws_guid_public_zone_name }}"
+              type: SRV
+              ttl: 6400
+              priority: 0
+              weight: 100
+              port: 389
+              value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
 
-        - name: "_ntp._tcp.{{ aws_guid_public_zone_name }}"
-          type: SRV
-          ttl: 6400
-          priority: 0
-          weight: 100
-          port: 123
-          value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+            - name: "_ldaps._tcp.{{ aws_guid_public_zone_name }}"
+              type: SRV
+              ttl: 6400
+              priority: 0
+              weight: 100
+              port: 636
+              value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
+            - name: "_ldaps._udp.{{ aws_guid_public_zone_name }}"
+              type: SRV
+              ttl: 6400
+              priority: 0
+              weight: 100
+              port: 636
+              value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
 
-  - name: Create Route53 A Record Entries for IDM
-    community.aws.route53:
-      state: present
-      zone: "{{ aws_guid_public_zone_name }}"
-      record: "{{ record_item.name }}"
-      type: "{{ record_item.type }}"
-      ttl: "{{ record_item.ttl }}"
-      value: "{{ record_item.value }}"
-      overwrite: true
-    loop: "{{ r53_records }}"
-    loop_control:
-      loop_var: record_item
-    when: (record_item.type == "A")
+            - name: "_ntp._tcp.{{ aws_guid_public_zone_name }}"
+              type: SRV
+              ttl: 6400
+              priority: 0
+              weight: 100
+              port: 123
+              value: "{{ idm_hostname }}.{{ aws_guid_public_zone_name }}."
 
-  - name: Create Route53 TXT Record Entries for IDM
-    community.aws.route53:
-      state: present
-      zone: "{{ aws_guid_public_zone_name }}"
-      record: "{{ record_item.name }}"
-      type: "{{ record_item.type }}"
-      ttl: "{{ record_item.ttl }}"
-      value: '"{{ record_item.value }}"'
-      overwrite: true
-    loop: "{{ r53_records }}"
-    loop_control:
-      loop_var: record_item
-    when: (record_item.type == "TXT")
+      - name: Create Route53 A Record Entries for IDM
+        tags:
+          - aws_infrastructure
+          - aws_route53
+        community.aws.route53:
+          state: present
+          zone: "{{ aws_guid_public_zone_name }}"
+          record: "{{ record_item.name }}"
+          type: "{{ record_item.type }}"
+          ttl: "{{ record_item.ttl }}"
+          value: "{{ record_item.value }}"
+          overwrite: true
+        loop: "{{ r53_records }}"
+        loop_control:
+          loop_var: record_item
+        when: (record_item.type == "A")
 
-  - name: Create Route53 SRV Record Entries for IDM
-    community.aws.route53:
-      state: present
-      zone: "{{ aws_guid_public_zone_name }}"
-      record: "{{ record_item.name }}"
-      type: "{{ record_item.type }}"
-      ttl: "{{ record_item.ttl }}"
-      value: "{{ record_item.priority }} {{ record_item.weight }} {{ record_item.port }} {{ record_item.value }}"
-      overwrite: true
-    loop: "{{ r53_records }}"
-    loop_control:
-      loop_var: record_item
-    when: (record_item.type == "SRV")
+      - name: Create Route53 TXT Record Entries for IDM
+        tags:
+          - aws_infrastructure
+          - aws_route53
+        community.aws.route53:
+          state: present
+          zone: "{{ aws_guid_public_zone_name }}"
+          record: "{{ record_item.name }}"
+          type: "{{ record_item.type }}"
+          ttl: "{{ record_item.ttl }}"
+          value: '"{{ record_item.value }}"'
+          overwrite: true
+        loop: "{{ r53_records }}"
+        loop_control:
+          loop_var: record_item
+        when: (record_item.type == "TXT")
 
-  - name: Add the new IDM Host to a new inventory
-    ansible.builtin.add_host:
-      hostname: '{{ ec2_instance_info.instances[0].public_ip_address }}'
-      groups:
-        - idm
-      ansible_user: ec2-user
-      ansible_connection: ssh
-      ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
-      ansible_python_interpreter: "/usr/libexec/platform-python"
-      aws_guid_public_zone_name: "{{ aws_guid_public_zone_name }}"
+      - name: Create Route53 SRV Record Entries for IDM
+        tags:
+          - aws_infrastructure
+          - aws_route53
+        community.aws.route53:
+          state: present
+          zone: "{{ aws_guid_public_zone_name }}"
+          record: "{{ record_item.name }}"
+          type: "{{ record_item.type }}"
+          ttl: "{{ record_item.ttl }}"
+          value: "{{ record_item.priority }} {{ record_item.weight }} {{ record_item.port }} {{ record_item.value }}"
+          overwrite: true
+        loop: "{{ r53_records }}"
+        loop_control:
+          loop_var: record_item
+        when: (record_item.type == "SRV")
+
+      - name: Add the new IDM Host to a new inventory
+        ansible.builtin.add_host:
+          hostname: '{{ ec2_instance_info.instances[0].public_ip_address }}'
+          groups:
+            - idm
+          ansible_user: ec2-user
+          ansible_connection: ssh
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+          ansible_python_interpreter: "/usr/libexec/platform-python"
+          aws_guid_public_zone_name: "{{ aws_guid_public_zone_name }}"
+          rhoe_email_owner: "{{ rhoe_email_owner }}"
+        tags:
+          - always
 
   # ======================================================================== IDM Server Setup
 
@@ -294,4 +329,32 @@
       ansible.builtin.include_vars: vars.yaml
 
     - name: Kick off configuration
-      ansible.builtin.include_tasks: configure.yaml
+      ansible.builtin.include_tasks:
+        file: configure.yaml
+        apply:
+          tags:
+            - configure
+      tags:
+        - configure
+
+    - name: Include the Let's Encrypt tasks
+      when: enable_lets_encrypt
+      ansible.builtin.include_tasks:
+        file: letsencrypt.yaml
+        apply:
+          tags:
+            - letsencrypt
+      tags:
+        - letsencrypt
+
+    - name: Output IDM Info
+      ansible.builtin.debug:
+        msg:
+          - "IDM Console: https://{{ idm_hostname }}.{{ aws_guid_public_zone_name }}"
+          - "IDM Admin User: admin"
+          - "IDM Admin Password: {{ idm_server_admin_password }}"
+          - "Provisioned Groups: {{ idm_provision_groups | string }}"
+          - "Provisioned Users: {{ idm_provision_users | string }}"
+          - "Groups: {{ idm_provision_groups_groups | join(', ') }}"
+          - "Users: {{ idm_provision_users_prefix + 'XX' + idm_provision_users_suffix }}, #{{ idm_provision_users_start }} - {{ idm_provision_users_count }}"
+          - "Users Password: {{ idm_provision_users_password }}"

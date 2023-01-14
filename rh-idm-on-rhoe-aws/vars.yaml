@@ -16,7 +16,7 @@ idm_provision_groups_groups:
   - adminusers
 idm_provision_users_group: workshopusers
 idm_provision_users_prefix: user
-idm_provision_users_suffix:
+idm_provision_users_suffix: ''
 idm_provision_users_start: 0
 idm_provision_users_count: 10
 idm_provision_users_password: r3dh4t1!
@@ -91,3 +91,6 @@ idm_server_install_options:
 #  - "--ip-address={{ ansible_ssh_host }}"
 #  - "--auto-forwarders"
 idm_base_dn: "DC={{ idm_server_domain.split('.') | join(',DC=') }}"
+
+
+enable_lets_encrypt: true
