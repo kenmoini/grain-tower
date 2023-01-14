@@ -1,16 +1,18 @@
 # Grain Tower - Seed for your Ansible Tower
 
+> This repo is currently under renovation
+
 This repository provides quickstart automation in Ansible Tower with little setup.
 
 The intended environment is Red Hat Open Environments, AWS in most cases.  For IBM Cloud there's [Blue Forge](https://github.com/kenmoini/blue-forge).
 
 With little more than a set of AWS Keys and Machine/SSH Credentials you can deploy a number of workloads such as:
 
-- A Bastion Host!
-- GitLab
 - Red Hat Identity Management
-- Red Hat OpenShift Container Platform, via the Bastion Host
-- [WIP] Keystone
+- [Legacy WIP] A Bastion Host!
+- [Legacy WIP] GitLab
+- [Legacy WIP] Red Hat OpenShift Container Platform, via the Bastion Host
+- [Legacy WIP] Keystone
 
 ---
 

@@ -1,0 +1,50 @@
+---
+# This playbook is the new entrypoint into the automation workflows
+# It assumes that as many of these workloads do, locally doing some fact gathering
+# and then a bit of infrastructure creation, then configuration of those infrastructure components
+
+- name: Deploy Grain Tower Workloads - or ya know, destroy them
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    action: deploy # deploy or destroy
+
+  tasks:
+
+    - name: Scope RHOE AWS Environment
+      ansible.builtin.include_role:
+        name: "scope-rhoe-aws"
+
+# ============================================================
+# Per-Workload Infrastructure Creation
+# ============================================================
+
+    - name: Create RHOE AWS Infrastructure for different workloads
+      block:
+
+        - name: RHOE - EC2 - IDM | AWS Infrastructure
+          when: (deploy_rh_idm is defined) and deploy_rh_idm | bool
+          ansible.builtin.include_role:
+            name: "rhoe-ec2-idm"
+          vars:
+            stage: aws_infra
+
+# ============================================================
+# Per-Workload Configuration
+# ============================================================
+
+- name: RHOE - EC2 - IDM | Configure
+  hosts: idm
+  become: true
+  gather_facts: false
+  vars:
+    action: deploy # deploy or destroy
+  tasks:
+
+    - name: RHOE - EC2 - IDM | Configure
+      ansible.builtin.include_role:
+        name: "rhoe-ec2-idm"
+      vars:
+        stage: configure
