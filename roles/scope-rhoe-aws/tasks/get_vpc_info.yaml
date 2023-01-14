@@ -17,7 +17,7 @@
   register: subnet_info
 
 - name: Set facts for VPC and Subnet info
-  set_fact:
+  ansible.builtin.set_fact:
     aws_vpc_id: "{{ vpc_info.vpcs[0].id }}"
     aws_subnet_id: "{{ subnet_info.subnets[0].id }}"
     rhoe_email_owner: "{{ vpc_info.vpcs[0].tags.owner }}"
