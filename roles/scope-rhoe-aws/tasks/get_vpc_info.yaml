@@ -8,10 +8,6 @@
       "tag-key": ['guid', 'deployer']
   register: vpc_info
 
-- name: d
-  debug:
-    msg: "{{ vpc_info }}"
-
 - name: Create VPC if it does not exist
   when: vpc_info.vpcs | length == 0
   block:

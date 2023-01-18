@@ -4,10 +4,6 @@
   amazon.aws.aws_caller_info:
   register: caller_info
 
-- name: d
-  debug:
-    msg: "{{ caller_info }}"
-
 - name: Set up Route53 Information
   ansible.builtin.include_tasks: get_route53_info.yaml
 
