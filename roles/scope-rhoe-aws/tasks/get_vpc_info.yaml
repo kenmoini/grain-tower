@@ -4,8 +4,35 @@
   amazon.aws.ec2_vpc_net_info:
     region: "{{ aws_region }}"
     filters:
-      "tag:Name": "{{ aws_guid_public_zone_name }}"
-      "tag-key": ['guid', 'owner']
+      "tag:Name": "{{ aws_rhoe_guid }}"
+      "tag-key": ['guid', 'deployer']
+  register: vpc_info
+
+- name: d
+  debug:
+    msg: "{{ vpc_info }}"
+
+- name: Create VPC if it does not exist
+  when: vpc_info.vpcs | length == 0
+  block:
+    - name: Create the VPC
+      amazon.aws.ec2_vpc_net:
+        name: "{{ aws_rhoe_guid }}"
+        cidr_block: "{{ default_vpc_cidr }}"
+        region:  "{{ aws_region }}"
+        state: present
+        tags:
+          Name: "{{ aws_rhoe_guid }}"
+          guid: "{{ aws_rhoe_guid }}"
+          deployer: "grain-tower"
+      register: vpc
+
+- name: Get Public VPC Info if it was just created
+  amazon.aws.ec2_vpc_net_info:
+    region: "{{ aws_region }}"
+    filters:
+      "tag:Name": "{{ aws_rhoe_guid }}"
+      "tag-key": ['guid', 'deployer']
   register: vpc_info
 
 - name: Get Subnet information
@@ -13,12 +40,35 @@
     region: "{{ aws_region }}"
     filters:
       vpc-id: "{{ vpc_info.vpcs[0].id }}"
-      "tag-key": ['guid', 'owner']
+      "tag-key": ['guid', 'deployer']
+  register: subnet_info
+
+- name: Create the Subnet if it does not exist
+  when: subnet_info.subnets | length == 0
+  block:
+    - name: Create the Subnet
+      amazon.aws.ec2_vpc_subnet:
+        vpc_id: "{{ vpc_info.vpcs[0].id }}"
+        cidr: "{{ default_vpc_cidr }}"
+        region: "{{ aws_region }}"
+        state: present
+        tags:
+          Name: "{{ aws_rhoe_guid }}"
+          guid: "{{ aws_rhoe_guid }}"
+          deployer: "grain-tower"
+      register: subnet
+
+- name: Get Subnet information if it was just created
+  amazon.aws.ec2_vpc_subnet_info:
+    region: "{{ aws_region }}"
+    filters:
+      vpc-id: "{{ vpc_info.vpcs[0].id }}"
+      "tag-key": ['guid', 'deployer']
   register: subnet_info
 
 - name: Set facts for VPC and Subnet info
   ansible.builtin.set_fact:
     aws_vpc_id: "{{ vpc_info.vpcs[0].id }}"
     aws_subnet_id: "{{ subnet_info.subnets[0].id }}"
-    rhoe_email_owner: "{{ vpc_info.vpcs[0].tags.owner }}"
+    rhoe_email_owner: "{{ caller_info.arn | split('/') | last | split('-') | first }}"
     rhoe_guid: "{{ vpc_info.vpcs[0].tags.guid }}"
