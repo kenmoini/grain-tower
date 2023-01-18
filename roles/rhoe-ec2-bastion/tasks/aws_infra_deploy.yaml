@@ -134,7 +134,7 @@
   tags:
     - aws_infrastructure
     - aws_route53
-  amazon.aws.route53:
+  community.aws.route53:
     state: present
     zone: "{{ aws_guid_public_zone_name }}"
     record: "{{ record_item.name }}"
