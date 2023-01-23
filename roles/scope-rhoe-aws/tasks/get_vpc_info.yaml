@@ -17,6 +17,8 @@
         cidr_block: "{{ default_vpc_cidr }}"
         region:  "{{ aws_region }}"
         state: present
+        dns_support: true
+        dns_hostnames: true
         tags:
           Name: "{{ aws_rhoe_guid }}"
           guid: "{{ aws_rhoe_guid }}"
@@ -45,7 +47,7 @@
     - name: Create the Subnet
       amazon.aws.ec2_vpc_subnet:
         vpc_id: "{{ vpc_info.vpcs[0].id }}"
-        cidr: "{{ default_vpc_cidr }}"
+        cidr: "{{ default_subnet_cidr }}"
         region: "{{ aws_region }}"
         state: present
         tags:
@@ -61,6 +63,34 @@
       vpc-id: "{{ vpc_info.vpcs[0].id }}"
       "tag-key": ['guid', 'deployer']
   register: subnet_info
+
+- name: Create Internet gateway with tags
+  amazon.aws.ec2_vpc_igw:
+    vpc_id: "{{ vpc_info.vpcs[0].id }}"
+    state: present
+    region:  "{{ aws_region }}"
+    tags:
+      Name: "{{ aws_rhoe_guid }}"
+      guid: "{{ aws_rhoe_guid }}"
+      deployer: "grain-tower"
+  register: igw
+
+- name: Set up public subnet route table
+  amazon.aws.ec2_vpc_route_table:
+    vpc_id: "{{ vpc_info.vpcs[0].id }}"
+    region:  "{{ aws_region }}"
+    tags:
+      Name: "{{ aws_rhoe_guid }}"
+      guid: "{{ aws_rhoe_guid }}"
+      deployer: "grain-tower"
+    subnets:
+      - "{{ subnet_info.subnets[0].id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw.gateway_id }}"
+      - dest: ::/0
+        gateway_id: "{{ igw.gateway_id }}"
+  register: public_route_table
 
 - name: Set facts for VPC and Subnet info
   ansible.builtin.set_fact:

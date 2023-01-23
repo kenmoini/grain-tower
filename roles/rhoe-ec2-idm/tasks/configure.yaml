@@ -17,7 +17,7 @@
   ansible.builtin.yum:
     disable_gpg_check: true
     state: present
-    name: ['nano', 'firewalld', 'python3-libselinux', '@idm:DL1']
+    name: ['nano', 'firewalld', 'python3-libselinux', '@idm:DL1', 'cockpit']
 
 - name: Install IDM server packages
   ansible.builtin.yum:
@@ -67,6 +67,12 @@
 - name: Start firewalld
   ansible.builtin.service:
     name: firewalld
+    state: started
+    enabled: true
+
+- name: Start cockpit
+  ansible.builtin.service:
+    name: cockpit.socket
     state: started
     enabled: true
 

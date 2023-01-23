@@ -88,6 +88,12 @@
     state: started
     enabled: true
 
+- name: Start Cockpit
+  ansible.builtin.service:
+    name: cockpit.socket
+    state: started
+    enabled: true
+
 - name: Clean up downloaded files
   ansible.builtin.file:
     state: absent

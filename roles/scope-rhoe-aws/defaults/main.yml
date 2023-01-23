@@ -2,4 +2,5 @@
 # defaults file for scope-rhoe-aws
 aws_region: us-east-2
 
-default_vpc_cidr: "10.10.0.0/24"
+default_vpc_cidr: "10.42.0.0/16"
+default_subnet_cidr: "10.42.69.0/24"

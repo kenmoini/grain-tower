@@ -19,6 +19,7 @@ base_pkgs:
   - firewalld
   - python3-pip
   - ansible
+  - cockpit
 
 oc_download_link: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
 openshift_install_download_link: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-install-linux.tar.gz

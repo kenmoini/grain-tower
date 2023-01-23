@@ -21,6 +21,7 @@ gitlab_server_pkgs:
   - firewalld
   - ipa-client
   - python3-pip
+  - cockpit
 
 gitlab_server_fqdn: "{{ gitlab_hostname }}.{{ aws_guid_public_zone_name }}"
 

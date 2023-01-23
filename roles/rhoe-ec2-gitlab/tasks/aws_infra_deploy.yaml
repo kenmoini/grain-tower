@@ -33,6 +33,7 @@
           - 5004
           - 5005
           - 8080
+          - 9090
         cidr_ip: 0.0.0.0/0
       - proto: udp
         ports:
@@ -42,7 +43,7 @@
           - 5003
           - 5004
           - 5005
-        cidr_ip: 0.0.0.0/8
+        cidr_ip: 0.0.0.0/0
     rules_egress:
       - proto: tcp
         from_port: 0

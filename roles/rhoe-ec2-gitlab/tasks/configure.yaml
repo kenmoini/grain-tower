@@ -62,6 +62,12 @@
     state: started
     enabled: true
 
+- name: Start Cockpit
+  ansible.builtin.service:
+    name: cockpit.socket
+    state: started
+    enabled: true
+
 - name: Connect to GitLab server and set firewall
   ansible.posix.firewalld:
     permanent: true
@@ -72,6 +78,7 @@
     - ssh
     - https
     - http
+    - cockpit
 
 - name: Connect to GitLab server and set firewall for port 8080
   ansible.posix.firewalld:
@@ -88,7 +95,6 @@
     - 5003
     - 5004
     - 5005
-
 
 - name: Check if GitLab configuration file already exists.
   ansible.builtin.stat: path=/etc/gitlab/gitlab.rb
