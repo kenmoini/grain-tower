@@ -1,8 +1,8 @@
 # Grain Tower - Seed for your Ansible Tower
 
-> This repo is currently under renovation
+> This repo should be considered to be archived and no longer receiving updates - patch PRs are welcome.
 
-This repository provides quickstart automation in Ansible Tower with little setup.
+This repository provides quickstart automation with Ansible with little setup.
 
 The intended environment is Red Hat Open Environments, AWS in most cases.  For IBM Cloud there's [Blue Forge](https://github.com/kenmoini/blue-forge).
 
@@ -11,8 +11,7 @@ With little more than a set of AWS Keys and Machine/SSH Credentials you can depl
 - A Bastion Host!
 - Red Hat Identity Management
 - GitLab
-- [Legacy WIP] Red Hat OpenShift Container Platform, via the Bastion Host
-- [Legacy WIP] Keystone
+- Red Hat OpenShift Container Platform, via the Bastion Host
 
 ---
 
@@ -41,11 +40,13 @@ The Private Key is secret and will be used to actually connect to created VMs, t
 
 If deploying an OpenShift cluster, you'll need an OpenShift Pull Secret: https://console.redhat.com/openshift/install/pull-secret
 
+Store it in `~/rh-ocp-pull-secret.json`
+
 ---
 
 ## Getting Started
 
-The primary entry point of this automation collection is via `./bootstrap.yaml` and a set of variable definitions to control what workloads are being deployed in tandem.  You can deploy the workloads individually and directly via their `deploy.yaml` files as well.
+The primary entry point of this automation collection is via `./deploy.yaml` or `./destroy.yaml` and a set of variable definitions to control what workloads are being deployed in tandem.
 
 ## Using via Ansible CLI
 
@@ -140,5 +141,7 @@ keystone_ssh_public_key: "{{ shared_public_key }}"
 #target_aws_access_key: "{{ lookup('ansible.builtin.ini', 'aws_access_key_id', section='default', file='~/.aws/credentials') }}"
 #target_aws_access_secret: "{{ lookup('ansible.builtin.ini', 'aws_secret_access_key', section='default', file='~/.aws/credentials') }}"
 ```
+
+*It'd be much better to Vault them and/or use GitOps.*
 
 And then set up a Survey to prompt for the `shared_public_key` variable, and the true/false values for workload deployments.

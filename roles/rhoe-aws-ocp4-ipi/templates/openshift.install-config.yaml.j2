@@ -1,0 +1,37 @@
+apiVersion: v1
+baseDomain: {{ aws_guid_public_zone_name }}
+compute:
+- architecture: {{ cluster_architecture }}
+  hyperthreading: Enabled
+  name: worker
+  platform:
+    aws:
+      type: {{ ocp_app_nodes_ec2_instance_type }}
+  replicas: {{ ocp_app_node_count }}
+controlPlane:
+  architecture: amd64
+  hyperthreading: Enabled
+  name: master
+  platform:
+    aws:
+      type: {{ ocp_control_plane_ec2_instance_type }}
+  replicas: 3
+metadata:
+  creationTimestamp: null
+  name: {{ ocp_cluster_name }}
+networking:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  machineNetwork:
+  - cidr: 10.0.0.0/16
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  aws:
+    region: {{ aws_region }}
+publish: External
+pullSecret: '{{ ocp_pull_secret | to_json }}'
+sshKey: |
+  {{ ocp_ssh_public_key }}

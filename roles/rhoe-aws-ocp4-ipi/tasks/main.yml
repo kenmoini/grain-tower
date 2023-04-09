@@ -1,0 +1,86 @@
+---
+# tasks file for rhoe-aws-ocp4-ipi
+
+- name: Deploy the OCP4 Environment
+  when: action == "deploy"
+  block:
+
+    - name: Create AWS home dir dir
+      ansible.builtin.file:
+        path: /root/.aws/
+        owner: root
+        group: root
+        state: directory
+        mode: '0600'
+
+    - name: Template AWS Credentials file
+      ansible.builtin.template:
+        src: templates/aws.credentials.j2
+        dest: /root/.aws/credentials
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Create openshift-install dir
+      ansible.builtin.file:
+        path: /opt/ocp4-cluster
+        owner: root
+        group: root
+        state: directory
+        mode: '0600'
+
+    - name: Check for existing cluster
+      ansible.builtin.stat:
+        path: /opt/ocp4-cluster/auth/kubeadmin-password
+      register: kubeadmin_pw_path
+
+    - name: Template the openshift-install config
+      ansible.builtin.template:
+        src: templates/openshift.install-config.yaml.j2
+        dest: /opt/ocp4-cluster/install-config.yaml
+        owner: root
+        group: root
+        mode: '0600'
+      when: not kubeadmin_pw_path.stat.exists
+
+    - name: Kick off cluster creation
+      when: not kubeadmin_pw_path.stat.exists
+      shell: openshift-install create cluster --dir=/opt/ocp4-cluster
+
+    - name: Read in kubeadmin-password file
+      ansible.builtin.slurp:
+        src: /opt/ocp4-cluster/auth/kubeadmin-password
+      register: kubeadmin_password
+
+    - name: Read in cluster metadata file
+      ansible.builtin.slurp:
+        src: /opt/ocp4-cluster/metadata.json
+      register: cluster_metadata
+
+    - name: Print out the information needed to access the cluster
+      debug:
+        msg:
+        - "========================================================"
+        - "Your OpenShift cluster is ready!"
+        - "========================================================"
+        - "Cluster Name: {{ (cluster_metadata.content | b64decode | from_json ).clusterName }}"
+        - "Cluster Console: https://console-openshift-console.apps.{{ (cluster_metadata.content | b64decode | from_json).aws.clusterDomain }}"
+        - "kubeadmin Password: {{ kubeadmin_password.content | b64decode }}"
+
+- name: Destroy the OCP4 Environment
+  when: action == "destroy"
+  block:
+
+    - name: Check for existing cluster
+      ansible.builtin.stat:
+        path: /opt/ocp4-cluster/auth/kubeadmin-password
+      register: kubeadmin_pw_path
+
+    - name: Kick off cluster destrucionwhile
+      when: kubeadmin_pw_path.stat.exists
+      shell: openshift-install destroy cluster --dir=/opt/ocp4-cluster
+
+    - name: Delete openshift-install dir
+      ansible.builtin.file:
+        path: /opt/ocp4-cluster
+        state: absent

@@ -1,2 +1,3 @@
 ---
 # defaults file for find-bastion
+aws_region: us-east-2

@@ -35,6 +35,7 @@
     loop_var: pip_item
   loop:
     - openshift
+    - boto3
 
 - name: Download oc & kubectl binaries
   ansible.builtin.get_url:
@@ -60,7 +61,7 @@
 - name: Move & Set executable bits for binaries
   ansible.builtin.copy:
     src: "/opt/{{ binary_item }}"
-    dest: "/usr/bin/{{ binary_item }}"
+    dest: "/usr/local/bin/{{ binary_item }}"
     remote_src: true
     mode: '0755'
   loop:

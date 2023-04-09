@@ -15,7 +15,7 @@
       amazon.aws.ec2_vpc_net:
         name: "{{ aws_rhoe_guid }}"
         cidr_block: "{{ default_vpc_cidr }}"
-        region:  "{{ aws_region }}"
+        region: "{{ aws_region }}"
         state: present
         dns_support: true
         dns_hostnames: true

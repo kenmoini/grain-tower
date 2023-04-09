@@ -1,9 +1,11 @@
 ---
 # tasks file for find-bastion
 
-- name: Query EC2 Instance for Bastion Host
-  community.aws.ec2_instance_info:
-    region: "{{ aws_region }}"
+
+- name: Get the EC2 Instance and wait until it has a public ip attached
+  tags:
+    - always
+  amazon.aws.ec2_instance_info:
     filters:
       "tag:guid": "{{ rhoe_guid }}"
       "tag:owner": "{{ rhoe_email_owner }}"
@@ -11,8 +13,26 @@
       "tag:Name": "{{ bastion_hostname }}"
       "tag:base_domain": "{{ aws_guid_public_zone_name }}"
       "tag:deployer": grain-tower
-      instance-state-name: ["running", "stopped"]
-  register: aws_ec2_instance
+      "tag:group": bastion-sg
+      instance-state-name: ["running", "pending"]
+    region: "{{ aws_region }}"
+  register: ec2_instance_info
+  until: ec2_instance_info.instances[0].public_ip_address is defined
+  retries: 30
+  delay: 10
+
+#- name: Query EC2 Instance for Bastion Host
+#  community.aws.ec2_instance_info:
+#    region: "{{ aws_region }}"
+#    filters:
+#      "tag:guid": "{{ rhoe_guid }}"
+#      "tag:owner": "{{ rhoe_email_owner }}"
+#      "tag:email": "{{ rhoe_email_owner }}"
+#      "tag:Name": "{{ bastion_hostname }}"
+#      "tag:base_domain": "{{ aws_guid_public_zone_name }}"
+#      "tag:deployer": grain-tower
+#      instance-state-name: ["running", "stopped"]
+#  register: aws_ec2_instance
 
 - name: Set facts for Bastion
   when: aws_ec2_instance.instances|length > 0

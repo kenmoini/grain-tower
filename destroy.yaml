@@ -6,6 +6,8 @@
 
   vars:
     action: destroy # deploy or destroy
+    bastion_hostname: gt-bastion
+    aws_region: us-east-2
 
   tasks:
 
@@ -14,7 +16,39 @@
         name: "scope-rhoe-aws"
 
 # ============================================================
-# Per-Workload Infrastructure Destruction
+# Per-Workload Destruction - From Bastion
+# ============================================================
+- name: RHOE - EC2 - OCP | Configure
+  hosts: bastion
+  become: true
+  gather_facts: false
+  vars:
+    action: destroy # deploy or destroy
+  tasks:
+
+    - name: RHOE - EC2 - OCP4 | Destroy
+      when: deploy_ocp4 is defined and deploy_ocp4 | bool
+      ansible.builtin.include_role:
+        name: "rhoe-aws-ocp4-ipi"
+
+# Go back to the localhost for other VMs
+- name: Destroy Grain Tower Workloads
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    action: destroy # deploy or destroy
+    bastion_hostname: gt-bastion
+    aws_region: us-east-2
+
+  tasks:
+
+    - name: Scope RHOE AWS Environment
+      ansible.builtin.include_role:
+        name: "scope-rhoe-aws"
+# ============================================================
+# Per-Workload Infrastructure Destruction - From Local
 # ============================================================
 
     - name: Destroy RHOE AWS Infrastructure for different workloads

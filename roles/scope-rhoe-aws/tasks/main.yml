@@ -9,3 +9,39 @@
 
 - name: Set up VPC Information
   ansible.builtin.include_tasks: get_vpc_info.yaml
+
+- name: Scope the Bastion host and add it to the running inventory if we're deploying OCP4
+  when: (deploy_ocp4 is defined) and deploy_ocp4 | bool
+  block:
+    - name: Get the EC2 Instance and wait until it has a public ip attached
+      tags:
+        - always
+      amazon.aws.ec2_instance_info:
+        filters:
+          "tag:guid": "{{ rhoe_guid }}"
+          "tag:owner": "{{ rhoe_email_owner }}"
+          "tag:email": "{{ rhoe_email_owner }}"
+          "tag:Name": "{{ bastion_hostname }}"
+          "tag:base_domain": "{{ aws_guid_public_zone_name }}"
+          "tag:deployer": grain-tower
+          "tag:group": bastion-sg
+          instance-state-name: ["running", "pending"]
+        region: "{{ aws_region }}"
+      register: ec2_instance_info
+      until: ec2_instance_info.instances[0].public_ip_address is defined
+      retries: 30
+      delay: 10
+
+    - name: Add the new Bastion Host to a new inventory
+      tags:
+        - always
+      ansible.builtin.add_host:
+        hostname: '{{ ec2_instance_info.instances[0].public_ip_address }}'
+        groups:
+          - bastion
+        ansible_user: ec2-user
+        ansible_connection: ssh
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        ansible_python_interpreter: "/usr/libexec/platform-python"
+        aws_guid_public_zone_name: "{{ aws_guid_public_zone_name }}"
+        rhoe_email_owner: "{{ rhoe_email_owner }}"

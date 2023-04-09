@@ -7,10 +7,14 @@
     - name: Create the AWS Infrastructure
       when: stage == "aws_infra"
       ansible.builtin.include_tasks: aws_infra_deploy.yaml
+      tags:
+        - aws_infra
 
     - name: Configure the Bastion instance
       when: stage == "configure"
       ansible.builtin.include_tasks: configure.yaml
+      tags:
+        - configure
 
 - name: Destroy the Bastion Environment
   when: action == "destroy"
